@@ -1,0 +1,54 @@
+{% load static %}
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <img src="{% static 'accounts/logo/logo.png' %}" alt="Khmer25 Admin" style="width: 36px; height: 36px;">
+    <span class="brand-text">Khmer25 Admin</span>
+  </div>
+  <nav class="nav flex-column gap-1">
+    <a class="nav-link nav-dashboard" href="{% url 'admin-dashboard' %}">
+      <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>
+      <span class="nav-label">Dashboard</span>
+    </a>
+    <a class="nav-link nav-products" href="{% url 'admin-products-list' %}">
+      <span class="nav-icon"><i class="bi bi-bag"></i></span>
+      <span class="nav-label">Products</span>
+    </a>
+    <a class="nav-link nav-categories" href="{% url 'admin-categories' %}">
+      <span class="nav-icon"><i class="bi bi-grid"></i></span>
+      <span class="nav-label">Categories</span>
+    </a>
+    <a class="nav-link nav-orders" href="{% url 'admin-orders-list' %}">
+      <span class="nav-icon"><i class="bi bi-receipt"></i></span>
+      <span class="nav-label">Orders</span>
+    </a>
+    <a class="nav-link nav-sales" href="{% url 'admin-sales-report' %}">
+      <span class="nav-icon"><i class="bi bi-graph-up-arrow"></i></span>
+      <span class="nav-label">Sales Report</span>
+    </a>
+    <a class="nav-link nav-customers" href="{% url 'admin-customers-list' %}">
+      <span class="nav-icon"><i class="bi bi-people"></i></span>
+      <span class="nav-label">Customers</span>
+    </a>
+    <a class="nav-link nav-users" href="{% url 'admin-users-roles' %}">
+      <span class="nav-icon"><i class="bi bi-shield-lock"></i></span>
+      <span class="nav-label">Users & Roles</span>
+    </a>
+    <a class="nav-link nav-banners" href="{% url 'admin-banners-list' %}">
+      <span class="nav-icon"><i class="bi bi-images"></i></span>
+      <span class="nav-label">Banners</span>
+    </a>
+    <a class="nav-link nav-settings" href="{% url 'admin-settings' %}">
+      <span class="nav-icon"><i class="bi bi-gear"></i></span>
+      <span class="nav-label">Settings</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="d-flex align-items-center gap-2">
+      <img class="avatar" src="{% static 'accounts/img/placeholder.svg' %}" alt="Admin avatar">
+      <div class="d-none d-lg-block">
+        <div class="fw-semibold">Sokly Dara</div>
+        <div class="text-muted">Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>

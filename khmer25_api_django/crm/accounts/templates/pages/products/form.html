@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit Product{% else %}Add Product{% endif %} | Khmer25 Admin{% endblock %}
+{% block body_class %}page-products{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h3 class="mb-1">{% if is_edit %}Edit Product{% else %}Add Product{% endif %}</h3>
+    <p class="text-muted mb-0">{% if is_edit %}Update product details.{% else %}Create or edit product details.{% endif %}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'admin-products-list' %}">Back</a>
+    <button class="btn btn-primary" form="productForm" type="submit">Save product</button>
+  </div>
+</div>
+
+<form id="productForm" class="row g-3" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="col-lg-8">
+    <div class="card p-3 mb-3">
+      <h5 class="mb-3">Basic information</h5>
+      <div class="mb-3">
+        <label class="form-label">Product name</label>
+        <input class="form-control" name="name" value="{{ product.name|default:'' }}" placeholder="e.g. Khmer Cola 330ml" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Category</label>
+        <select class="form-select" name="category" required>
+          <option selected>Select category</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>{{ category.title_en }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Price</label>
+          <div class="input-group">
+            <span class="input-group-text" id="currencySymbol">
+              {% if product and product.currency == "KHR" %}៛{% else %}${% endif %}
+            </span>
+            <input class="form-control" name="price" value="{{ product.price|default:'' }}" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Currency</label>
+          <select class="form-select" name="currency" id="currencySelect">
+            <option value="USD" {% if not product or product.currency == "USD" %}selected{% endif %}>USD ($)</option>
+            <option value="KHR" {% if product and product.currency == "KHR" %}selected{% endif %}>KHR (៛)</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Stock</label>
+          <input class="form-control" name="quantity" value="{{ product.quantity|default:'' }}" placeholder="0" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <h5 class="mb-3">Images</h5>
+      <div class="gallery-grid">
+        <div class="border border-dashed rounded p-3 text-center">
+          <i class="bi bi-upload text-muted"></i>
+          <div class="text-muted small">Upload image</div>
+        </div>
+        {% if product and product.image and "via.placeholder.com" not in product.image.url %}
+          <img src="{{ product.image.url }}" alt="Product">
+        {% else %}
+          <img src="{% static 'accounts/img/placeholder.svg' %}" alt="Product">
+        {% endif %}
+      </div>
+      <input class="form-control mt-3" type="file" name="image">
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card p-3 mb-3">
+      <h5 class="mb-3">Status</h5>
+      <div class="mb-3">
+        <label class="form-label">Publish status</label>
+        <select class="form-select">
+          <option selected>Active</option>
+          <option>Draft</option>
+          <option>Archived</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">SKU</label>
+        <input class="form-control" value="{% if product %}{{ product.id }}{% endif %}" disabled>
+      </div>
+      <div>
+        <label class="form-label">Tags</label>
+        <input class="form-control" placeholder="Summer, promo">
+      </div>
+    </div>
+    <div class="card p-3">
+      <h5 class="mb-3">Variants</h5>
+      <div class="border rounded p-2 mb-2 d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-semibold">330ml Bottle</div>
+          <div class="text-muted small">SKU: KC-330</div>
+        </div>
+        <span class="text-muted">$1.50</span>
+      </div>
+      <button class="btn btn-outline-primary w-100" type="button">Add variant</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const currencySelect = document.getElementById("currencySelect");
+  const currencySymbol = document.getElementById("currencySymbol");
+  const updateSymbol = () => {
+    if (!currencySelect || !currencySymbol) return;
+    currencySymbol.textContent = currencySelect.value === "KHR" ? "៛" : "$";
+  };
+  currencySelect?.addEventListener("change", updateSymbol);
+  updateSymbol();
+</script>
+{% endblock %}

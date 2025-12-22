@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Order Report | Khmer25 Admin{% endblock %}
+{% block body_class %}page-sales{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h3 class="mb-1">Sales Order Report</h3>
+    <p class="text-muted mb-0">Parsed Telegram orders with live filtering and export.</p>
+  </div>
+  <a class="btn btn-outline-primary" href="?preset={{ preset }}&start={{ start_date }}&end={{ end_date }}&q={{ query }}&export=csv">Export CSV</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6 col-xl-3">
+    <div class="card kpi-card">
+      <div class="text-muted">Today's Order Count</div>
+      <div class="kpi-value">{{ todays_count }}</div>
+      <div class="text-muted small">{{ start_date }}</div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card kpi-card">
+      <div class="text-muted">Lifetime Order Count</div>
+      <div class="kpi-value">{{ total_orders }}</div>
+      <div class="text-muted small">All time</div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card kpi-card">
+      <div class="text-muted">Total Revenue</div>
+      <div class="kpi-value">${{ total_revenue|floatformat:2 }}</div>
+      <div class="text-muted small">Gross sales</div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card kpi-card">
+      <div class="text-muted">AOV</div>
+      <div class="kpi-value">${{ aov|floatformat:2 }}</div>
+      <div class="text-muted small">Avg order value</div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3 mb-4">
+  <form class="row g-3 align-items-end" method="get" id="filtersForm">
+    <div class="col-lg-4">
+      <label class="form-label">Search by Order ID / Phone</label>
+      <input class="form-control" id="searchInput" name="q" value="{{ query }}" placeholder="ORD-2025-0001 or +855">
+    </div>
+    <div class="col-lg-4">
+      <label class="form-label">Date Range</label>
+      <div class="d-flex gap-2">
+        <input class="form-control" type="date" name="start" value="{{ start_date }}">
+        <input class="form-control" type="date" name="end" value="{{ end_date }}">
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <label class="form-label">Presets</label>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-primary" name="preset" value="today">Today</button>
+        <button class="btn btn-outline-primary" name="preset" value="last7">Last 7 Days</button>
+        <button class="btn btn-outline-primary" name="preset" value="month">This Month</button>
+        <button class="btn btn-outline-primary" name="preset" value="custom">Custom Range</button>
+      </div>
+    </div>
+    <div class="col-12 text-end">
+      <button class="btn btn-primary">Apply Filter</button>
+    </div>
+  </form>
+</div>
+
+<div class="card p-3">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Date &amp; Time</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Receipt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td>{{ order.order_id }}</td>
+          <td>
+            <div class="fw-semibold">{{ order.customer_name }}</div>
+            <div class="text-muted small">{{ order.customer_phone }}</div>
+          </td>
+          <td>{{ order.timestamp|date:"M d, Y H:i" }}</td>
+          <td>
+            <details>
+              <summary>{{ order.items|length }} items</summary>
+              <div class="text-muted small mt-1">
+                {{ order.items|join:", " }}
+              </div>
+            </details>
+          </td>
+          <td>${{ order.total_amount|floatformat:2 }}</td>
+          <td>
+            {% if order.receipt_url %}
+              <img src="{{ order.receipt_url }}" alt="Receipt" class="rounded" style="width: 44px; height: 44px; object-fit: cover; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptModal" data-receipt="{{ order.receipt_url }}">
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">No orders found for this range.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Receipt QR</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="receiptModalImage" src="" alt="Receipt" class="img-fluid rounded">
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const receiptModal = document.getElementById('receiptModal');
+  receiptModal?.addEventListener('show.bs.modal', (event) => {
+    const trigger = event.relatedTarget;
+    const url = trigger?.getAttribute('data-receipt');
+    const img = document.getElementById('receiptModalImage');
+    if (img && url) {
+      img.src = url;
+    }
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  const filtersForm = document.getElementById('filtersForm');
+  let searchTimer = null;
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      filtersForm?.submit();
+    }, 350);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Admin Dashboard{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{% static 'accounts/css/admin.css' %}" rel="stylesheet">
+    {% block head %}{% endblock %}
+  </head>
+  <body class="app-body {% block body_class %}{% endblock %}">
+    <div class="app-shell">
+      {% include 'partials/sidebar.html' %}
+      <main class="main-content">
+        {% include 'partials/navbar.html' %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      const toggle = document.querySelector("[data-sidebar-toggle]");
+      if (toggle) {
+        toggle.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-collapsed");
+        });
+      }
+      const mobileToggle = document.querySelector("[data-sidebar-mobile]");
+      if (mobileToggle) {
+        mobileToggle.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-open");
+        });
+      }
+      document.querySelectorAll("img").forEach((img) => {
+        if (img.src && img.src.includes("via.placeholder.com")) {
+          img.src = "{% static 'accounts/img/placeholder.svg' %}";
+        }
+      });
+
+      document.querySelectorAll("form[data-swal-confirm]").forEach((form) => {
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const title = form.getAttribute("data-swal-title") || "Are you sure?";
+          const text = form.getAttribute("data-swal-text") || "This action cannot be undone.";
+          Swal.fire({
+            title,
+            text,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, delete it",
+            cancelButtonText: "Cancel",
+          }).then((result) => {
+            if (result.isConfirmed) {
+              form.submit();
+            }
+          });
+        });
+      });
+    </script>
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>

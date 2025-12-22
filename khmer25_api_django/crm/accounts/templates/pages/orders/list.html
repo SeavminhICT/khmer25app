@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Orders | Khmer25 Admin{% endblock %}
+{% block body_class %}page-orders{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h3 class="mb-1">Orders</h3>
+    <p class="text-muted mb-0">Track orders and fulfillment status.</p>
+  </div>
+  <button class="btn btn-primary">Create order</button>
+</div>
+
+<div class="card p-3 mb-4">
+  <form class="row g-3 align-items-center" method="get">
+    <div class="col-md-4">
+      <input class="form-control" type="search" name="q" placeholder="Search by order ID or customer" disabled>
+    </div>
+    <div class="col-md-3">
+      <select class="form-select" name="status">
+        <option value="">Status: All</option>
+        <option value="pending" {% if status_filter == "pending" %}selected{% endif %}>Pending</option>
+        <option value="confirmed" {% if status_filter == "confirmed" %}selected{% endif %}>Confirmed</option>
+        <option value="shipping" {% if status_filter == "shipping" %}selected{% endif %}>Shipping</option>
+        <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>Completed</option>
+        <option value="cancelled" {% if status_filter == "cancelled" %}selected{% endif %}>Cancelled</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <input class="form-control" type="date" disabled>
+    </div>
+    <div class="col-md-2 text-md-end">
+      <button class="btn btn-outline-primary w-100" type="submit">Apply</button>
+    </div>
+  </form>
+</div>
+
+<div class="card p-3">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Customer</th>
+          <th>Status</th>
+          <th>Total</th>
+          <th>Date</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td>{{ order.order_code|default:order.id }}</td>
+          <td>{{ order.customer_name|default:"Guest" }}</td>
+          <td>
+            {% if order.order_status == "completed" %}
+              <span class="badge badge-soft badge-success">Completed</span>
+            {% elif order.order_status == "pending" %}
+              <span class="badge badge-soft badge-warning">Pending</span>
+            {% elif order.order_status == "cancelled" %}
+              <span class="badge badge-soft badge-danger">Cancelled</span>
+            {% else %}
+              <span class="badge badge-soft badge-neutral">{{ order.order_status|title }}</span>
+            {% endif %}
+          </td>
+          <td>${{ order.total_amount }}</td>
+          <td>{{ order.created_at|date:"M d, Y" }}</td>
+          <td class="text-end">
+            <a class="btn btn-outline-primary btn-sm" href="{% url 'admin-orders-detail' order.id %}">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">No orders found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
