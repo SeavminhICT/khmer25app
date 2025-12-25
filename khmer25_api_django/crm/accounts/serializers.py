@@ -111,15 +111,44 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product_image = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItem
-        fields = "__all__"
+        fields = [
+            "id",
+            "product_id",
+            "product_name",
+            "product_image",
+            "price",
+            "quantity",
+            "subtotal",
+        ]
+
+    def get_product_image(self, obj):
+        product = obj.product
+        if not product or not product.image:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(product.image.url)
+        return product.image.url
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     class Meta:
         model = Order
-        fields = "__all__"
+        fields = [
+            "id",
+            "order_code",
+            "created_at",
+            "total_amount",
+            "order_status",
+            "payment_status",
+            "payment_method",
+            "address",
+            "items",
+        ]
 
 
 

@@ -42,20 +42,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       _error = null;
     });
     try {
-      final data = await ApiService.fetchOrders(
-        userId: user.id,
-        phone: user.phone,
-      );
+      final data = await ApiService.fetchOrders();
       if (!mounted) return;
       setState(() {
-        _orders = data;
+        _orders = _sortByLatest(data);
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = '$e';
+        _error = _cleanError(e);
       });
     }
   }
@@ -118,26 +115,55 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(child: Text(_error!))
-                : filtered.isEmpty
-                ? const Center(child: Text('No orders yet'))
-                : RefreshIndicator(
-                    onRefresh: _fetch,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final o = filtered[index];
-                        return _OrderTile(order: o);
-                      },
-                    ),
-                  ),
+            child: _buildBody(filtered),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody(List<Map<String, dynamic>> filtered) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return RefreshIndicator(
+        onRefresh: _fetch,
+        child: _messageList(_error!),
+      );
+    }
+    if (filtered.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _fetch,
+        child: _messageList('No orders yet.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _fetch,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final o = filtered[index];
+          return _OrderTile(order: o);
+        },
+      ),
+    );
+  }
+
+  Widget _messageList(String message) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 80, 20, 20),
+      children: [
+        Center(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ),
+      ],
     );
   }
 
@@ -154,10 +180,39 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         return payment.isEmpty || payment == 'pending' || payment == 'unpaid';
       }
       if (filter == 'checking_stock') {
-        return status == 'pending' || status == 'processing';
+        return status == 'pending' ||
+            status == 'processing' ||
+            status == 'confirmed' ||
+            status == 'shipping';
       }
       return true;
     }).toList();
+  }
+
+  List<Map<String, dynamic>> _sortByLatest(
+    List<Map<String, dynamic>> source,
+  ) {
+    final items = List<Map<String, dynamic>>.from(source);
+    items.sort((a, b) {
+      final aDate = _parseDate(a['created_at']);
+      final bDate = _parseDate(b['created_at']);
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return bDate.compareTo(aDate);
+    });
+    return items;
+  }
+
+  DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    return DateTime.tryParse(raw.toString());
+  }
+
+  String _cleanError(Object error) {
+    final raw = error.toString();
+    return raw.replaceFirst('Exception: ', '').trim();
   }
 }
 
@@ -167,27 +222,17 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final code = (order['order_code'] ?? 'Order').toString();
-    final total = (order['total_amount'] ?? 0).toString();
+    final code =
+        (order['order_code'] ?? order['id'] ?? 'Order').toString();
+    final totalValue = _toDouble(order['total_amount']) ?? 0;
+    final totalText = totalValue.toStringAsFixed(2);
     final status = (order['order_status'] ?? 'pending').toString();
     final payment = (order['payment_status'] ?? 'pending').toString();
     final method = (order['payment_method'] ?? '').toString();
     final created = (order['created_at'] ?? '').toString();
+    final address = (order['address'] ?? '').toString();
     final dateText = _formatDate(created);
-    final tracking =
-        (order['tracking_number'] ?? order['tracking'] ?? '').toString();
-    final items = order['items'];
-    String? firstTitle;
-    String? firstThumb;
-    int? itemCount;
-    if (items is List && items.isNotEmpty) {
-      final first = items.first;
-      if (first is Map) {
-        firstTitle = (first['title'] ?? first['name'] ?? '').toString();
-        firstThumb = first['thumbnail']?.toString();
-      }
-      itemCount = items.length;
-    }
+    final items = _normalizeItems(order['items']);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -236,7 +281,7 @@ class _OrderTile extends StatelessWidget {
           _infoRow(
             label: 'Status',
             child: _pill(
-              _humanize(status),
+              _displayOrderStatus(status),
               color: Colors.pink.shade100,
               textColor: Colors.pink.shade800,
             ),
@@ -244,14 +289,14 @@ class _OrderTile extends StatelessWidget {
           _infoRow(
             label: 'Payment',
             child: Text(
-              '${_humanize(method)} • ${_humanize(payment)}',
+              '${_humanize(method)} • ${_displayPaymentStatus(payment)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           _infoRow(
-            label: 'Tracking Number',
+            label: 'Delivery Address',
             child: Text(
-              tracking.isEmpty ? '-' : tracking,
+              address.isEmpty ? '-' : address,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -262,46 +307,16 @@ class _OrderTile extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(height: 10),
-          if (firstTitle != null || firstThumb != null)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _thumb(firstThumb),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        firstTitle ?? 'Item',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        itemCount != null && itemCount > 1
-                            ? '$itemCount items'
-                            : 'x1',
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '\$$total',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          if (items.isNotEmpty) ...[
+            const Text(
+              'Items',
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 8),
+            ...items.map(_itemRow),
+            const SizedBox(height: 6),
+          ],
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -317,7 +332,7 @@ class _OrderTile extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  '\$$total',
+                  '\$$totalText',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -404,12 +419,99 @@ class _OrderTile extends StatelessWidget {
     );
   }
 
+  List<Map<String, dynamic>> _normalizeItems(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+  }
+
+  Widget _itemRow(Map<String, dynamic> item) {
+    final name = (item['product_name'] ?? item['title'] ?? item['name'] ?? '')
+        .toString();
+    final image = (item['product_image'] ??
+            item['image'] ??
+            item['thumbnail'] ??
+            '')
+        .toString();
+    final qtyRaw = item['quantity'] ?? item['qty'] ?? 0;
+    final qty = int.tryParse(qtyRaw.toString()) ?? 0;
+    final priceRaw = item['price'];
+    final priceValue = _toDouble(priceRaw) ?? 0;
+    final subtotalValue =
+        _toDouble(item['subtotal']) ?? (priceValue * qty.toDouble());
+    final priceText = priceValue.toStringAsFixed(2);
+    final subtotalText = subtotalValue.toStringAsFixed(2);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _thumb(image),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Item' : name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Qty: $qty • Price: \$$priceText',
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                Text(
+                  'Subtotal: \$$subtotalText',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double? _toDouble(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw.toString());
+  }
+
   String _humanize(String raw) {
     if (raw.isEmpty) return '-';
     return raw.replaceAll('_', ' ').split(' ').map((w) {
       if (w.isEmpty) return w;
       return '${w[0].toUpperCase()}${w.substring(1)}';
     }).join(' ');
+  }
+
+  String _displayOrderStatus(String raw) {
+    final value = raw.toLowerCase();
+    if (value == 'pending') return 'Pending';
+    if (value == 'confirmed' || value == 'shipping' || value == 'processing') {
+      return 'Processing';
+    }
+    if (value == 'completed') return 'Completed';
+    if (value == 'cancelled' || value == 'canceled') return 'Cancelled';
+    return _humanize(raw);
+  }
+
+  String _displayPaymentStatus(String raw) {
+    final value = raw.toLowerCase();
+    if (value == 'paid') return 'Paid';
+    if (value == 'failed') return 'Failed';
+    if (value == 'pending') return 'Pending';
+    return _humanize(raw);
   }
 
   String _formatDate(String raw) {

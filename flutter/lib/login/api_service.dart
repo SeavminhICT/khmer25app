@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:khmer25/models/category_item.dart';
+import 'package:khmer25/login/auth_store.dart';
 import 'package:khmer25/login/news_item.dart';
 import 'package:khmer25/product/model/product_model.dart';
 
@@ -12,6 +13,17 @@ class ApiService {
   static const Map<String, String> _jsonHeaders = {
     "Content-Type": "application/json",
   };
+
+  static Map<String, String> _authHeaders() {
+    final token = AuthStore.token;
+    if (token == null || token.isEmpty) {
+      return Map<String, String>.from(_jsonHeaders);
+    }
+    return {
+      ..._jsonHeaders,
+      "Authorization": "Token $token",
+    };
+  }
 
   // ---------------- USERS ----------------
   static Future<List<NewsItem>> fetchUsers() async {
@@ -120,31 +132,35 @@ class ApiService {
   }
 
   // ---------------- ORDERS (History) ----------------
-  static Future<List<Map<String, dynamic>>> fetchOrders({
-    int? userId,
-    String? phone,
-  }) async {
-    final params = <String, String>{};
-    if (userId != null && userId != 0) {
-      params["user_id"] = "$userId";
-    } else if (phone != null && phone.isNotEmpty) {
-      params["phone"] = phone;
+  static Future<List<Map<String, dynamic>>> fetchOrders() async {
+    await AuthStore.init();
+    final token = AuthStore.token;
+    if (token == null || token.isEmpty) {
+      throw Exception("Please login to view your order history.");
     }
-    final uri = Uri.parse(
-      "$baseUrl/api/orders/",
-    ).replace(queryParameters: params);
-    final res = await http.get(uri, headers: _jsonHeaders);
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      if (body is List) {
-        return body
-            .whereType<Map>()
-            .map((m) => Map<String, dynamic>.from(m))
-            .toList();
+    final uri = Uri.parse("$baseUrl/api/orders/");
+    try {
+      final res = await http.get(uri, headers: _authHeaders());
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        if (body is List) {
+          return body
+              .whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList();
+        }
+        throw Exception("Unexpected orders response: $body");
       }
-      throw Exception("Unexpected orders response: $body");
+      if (res.statusCode == 401 || res.statusCode == 403) {
+        throw Exception("Unauthorized. Please login again.");
+      }
+      if (res.statusCode >= 500) {
+        throw Exception("Server error. Please try again later.");
+      }
+      throw Exception("Failed to load orders (${res.statusCode}).");
+    } on SocketException {
+      throw Exception("Network error. Check your connection and try again.");
     }
-    throw Exception("Failed to load orders (${res.statusCode}): ${res.body}");
   }
 
   // ---------------- BANNERS ----------------
@@ -204,6 +220,7 @@ class ApiService {
       "POST",
       Uri.parse("$baseUrl/api/orders/"),
     );
+    req.headers.addAll(_authHeaders());
 
     req.fields["payload"] = jsonEncode(payload);
 

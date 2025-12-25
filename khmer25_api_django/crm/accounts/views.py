@@ -5,7 +5,6 @@ from typing import Optional
 
 import requests
 from django.contrib.auth.hashers import check_password
-from django.db import models
 from django.utils import timezone
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
@@ -68,20 +67,19 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = [AuthTokenAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ("approve", "reject"):
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = super().get_queryset()
-        user_id = self.request.query_params.get("user_id")
-        phone = self.request.query_params.get("phone")
-        if user_id and phone:
-            # Match either the logged-in user or the phone number (guest orders)
-            qs = qs.filter(models.Q(user_id=user_id) | models.Q(phone=phone))
-        elif user_id:
-            qs = qs.filter(user_id=user_id)
-        elif phone:
-            qs = qs.filter(phone=phone)
-        return qs
+        user = getattr(self.request, "user", None)
+        if not getattr(user, "is_authenticated", False):
+            return qs.none()
+        return qs.filter(user=user).order_by("-created_at")
 
     @action(detail=True, methods=["post"], url_path="approve", permission_classes=[AllowAny])
     def approve(self, request, pk=None):

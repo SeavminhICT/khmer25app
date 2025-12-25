@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:khmer25/cart/cart_store.dart';
 import 'package:khmer25/login/auth_store.dart';
 import 'package:khmer25/login/api_service.dart';
+import 'package:khmer25/login/login_page.dart';
 import 'package:khmer25/services/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:latlong2/latlong.dart';
@@ -136,6 +137,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> payNow() async {
+    final user = AuthStore.currentUser.value;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please login to place an order.")),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
     if (CartStore.items.value.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -154,7 +167,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => loading = true);
 
     final isCod = method == PayMethod.cod;
-    final user = AuthStore.currentUser.value;
     final userName = (user?.displayName ?? '').trim();
     final userPhone = (user?.phone ?? '').trim();
     final customerName = userName.isNotEmpty ? userName : 'Guest';
