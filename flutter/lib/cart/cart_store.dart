@@ -9,6 +9,7 @@ class CartItem {
   final double price;
   final String currency;
   final int quantity;
+  final String paywayLink;
 
   const CartItem({
     required this.id,
@@ -18,6 +19,7 @@ class CartItem {
     required this.price,
     required this.currency,
     required this.quantity,
+    this.paywayLink = "",
   });
 
   CartItem copyWith({int? quantity}) {
@@ -29,6 +31,7 @@ class CartItem {
       price: price,
       currency: currency,
       quantity: quantity ?? this.quantity,
+      paywayLink: paywayLink,
     );
   }
 
@@ -40,6 +43,7 @@ class CartItem {
         "price": price,
         "currency": currency,
         "qty": quantity,
+        if (paywayLink.isNotEmpty) "payway_link": paywayLink,
       };
 }
 
@@ -58,6 +62,7 @@ class CartStore {
     final img = (product['img'] ?? '').toString();
     final unit = (product['unit'] ?? '').toString();
     final currency = _toCurrency(product['currency'], product['price']);
+    final paywayLink = (product['payway_link'] ?? '').toString();
 
     final idx = updated.indexWhere((x) => x.id == id);
 
@@ -74,6 +79,7 @@ class CartStore {
           price: price,
           currency: currency,
           quantity: qty,
+          paywayLink: paywayLink,
         ),
       );
     }

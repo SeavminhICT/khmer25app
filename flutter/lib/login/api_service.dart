@@ -245,6 +245,31 @@ class ApiService {
     throw Exception("Order failed (${res.statusCode}): ${res.body}");
   }
 
+  static Future<String> createPaywayPayment({
+    required String orderId,
+    double? amount,
+  }) async {
+    await AuthStore.init();
+    final uri = Uri.parse("$baseUrl/api/payments/create");
+    final res = await http.post(
+      uri,
+      headers: _authHeaders(),
+      body: jsonEncode({
+        "order_id": orderId,
+        if (amount != null) "amount": amount,
+      }),
+    );
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      final body = jsonDecode(res.body);
+      final url = body["payment_url"]?.toString() ?? "";
+      if (url.isEmpty) {
+        throw Exception("No payment_url returned from server.");
+      }
+      return url;
+    }
+    throw Exception("PayWay link failed (${res.statusCode}): ${res.body}");
+  }
+
   // ---------------- PROFILE ----------------
   static Future<Map<String, dynamic>> updateProfile({
     required int userId,

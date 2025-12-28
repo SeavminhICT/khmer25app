@@ -117,6 +117,14 @@
         <span class="text-muted">Transaction</span>
         <span>{% if payments %}{{ payments.0.id }}{% else %}-{% endif %}</span>
       </div>
+      {% with items.0.product.payway_link as payway_link %}
+      {% if payway_link %}
+      <div class="d-grid gap-2 mt-3">
+        <button class="btn btn-primary" type="button" id="openPaywayBtn" data-payway-link="{{ payway_link|default:'' }}">Pay via ABA PayWay</button>
+        <div class="text-muted small">Opens the ABA PayWay / KHQR page in a popup so the customer can scan and pay.</div>
+      </div>
+      {% endif %}
+      {% endwith %}
     </div>
   </div>
 </div>
@@ -168,6 +176,13 @@
     } else {
       Swal.fire({ icon: "error", title: "Update failed", text: "Please try again." });
     }
+  });
+
+  const payBtn = document.getElementById("openPaywayBtn");
+  payBtn?.addEventListener("click", () => {
+    const link = payBtn.getAttribute("data-payway-link");
+    if (!link) return;
+    window.open(link, "payway", "width=520,height=780,noopener,noreferrer");
   });
 </script>
 {% endblock %}

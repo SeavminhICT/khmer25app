@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -159,6 +160,20 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:64129",
     "http://localhost:65008",
 ]
+
+# --- Payment / Telegram integrations ---
+PAYWAY_MERCHANT_ID = os.getenv("PAYWAY_MERCHANT_ID", "")
+PAYWAY_API_KEY = os.getenv("PAYWAY_API_KEY", "")
+PAYWAY_BASE_URL = os.getenv("PAYWAY_BASE_URL", "https://link.payway.com.kh")
+PAYWAY_CHECKOUT_URL = os.getenv("PAYWAY_CHECKOUT_URL", PAYWAY_BASE_URL)
+PAYWAY_RETURN_URL = os.getenv("PAYWAY_RETURN_URL", "")
+PAYWAY_CALLBACK_URL = os.getenv(
+    "PAYWAY_CALLBACK_URL", "https://example.com/api/payments/callback"
+)
+PAYWAY_CURRENCY = os.getenv("PAYWAY_CURRENCY", "USD")
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 
  

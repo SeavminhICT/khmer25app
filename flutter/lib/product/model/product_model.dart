@@ -9,6 +9,7 @@ class ProductModel {
   final String categoryName; // human-friendly name if provided
   final String subCategoryName; // human-friendly name if provided
   final String imageUrl;
+  final String paywayLink;
 
   ProductModel({
     required this.id,
@@ -21,6 +22,7 @@ class ProductModel {
     required this.categoryName,
     required this.subCategoryName,
     required this.imageUrl,
+    this.paywayLink = '',
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class ProductModel {
       categoryName: (json['category_name'] ?? json['categoryName'] ?? '').toString(),
       subCategoryName: (json['subcategory_name'] ?? json['subCategoryName'] ?? '').toString(),
       imageUrl: (json['image'] ?? json['image_url'] ?? '').toString(),
+      paywayLink: (json['payway_link'] ?? '').toString(),
     );
   }
 
@@ -72,5 +75,6 @@ class ProductModel {
         'unit': unit,
         'tag': tag,
         'subCategory': subCategory,
+        'payway_link': paywayLink,
       };
 }

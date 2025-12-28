@@ -33,6 +33,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "product_date",
             "image",
             "image_url",
+            "payway_link",
             "category",
         ]
 

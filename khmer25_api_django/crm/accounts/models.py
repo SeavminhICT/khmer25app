@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import models
+from django.utils import timezone
 
 # Category
 class Category(models.Model):
@@ -24,6 +25,7 @@ class Product(models.Model):
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="USD")
     quantity = models.PositiveIntegerField()
     image = models.ImageField(upload_to='products/', blank=True, null=True)
+    payway_link = models.URLField(blank=True, null=True)
     supplier_id = models.IntegerField(blank=True, null=True)
     product_date = models.DateField(auto_now_add=True)
     def __str__(self):
@@ -72,6 +74,7 @@ class Order(models.Model):
         ("COD", "Cash on Delivery"),
         ("ABA_QR", "ABA QR"),
         ("AC_QR", "AC QR"),
+        ("ABA_PAYWAY", "ABA PayWay"),
     ]
     PAYMENT_STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -141,12 +144,14 @@ class Payment(models.Model):
         ("pending", "Pending"),
         ("verified", "Verified"),
         ("rejected", "Rejected"),
+        ("failed", "Failed"),
     ]
 
     METHOD_CHOICES = [
         ("COD", "Cash on Delivery"),
         ("ABA_QR", "ABA QR"),
         ("AC_QR", "AC QR"),
+        ("ABA_PAYWAY", "ABA PayWay"),
     ]
 
     order = models.ForeignKey(Order, related_name='payments', on_delete=models.CASCADE)
@@ -155,6 +160,41 @@ class Payment(models.Model):
     receipt_image = models.ImageField(upload_to="payments/", blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     paid_at = models.DateTimeField(blank=True, null=True)
+    currency = models.CharField(max_length=3, default="USD")
+    provider = models.CharField(max_length=40, default="ABA_PAYWAY")
+    transaction_id = models.CharField(max_length=128, blank=True, null=True)
+    hash_value = models.CharField(max_length=512, blank=True)
+    hash_valid = models.BooleanField(default=False)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class PaymentTransaction(models.Model):
+    """
+    Audit log for inbound/outbound PayWay messages to prevent duplicate processing.
+    """
+    provider = models.CharField(max_length=40, default="ABA_PAYWAY")
+    order = models.ForeignKey(Order, related_name="payment_transactions", on_delete=models.CASCADE)
+    payment = models.ForeignKey(Payment, related_name="transactions", on_delete=models.SET_NULL, blank=True, null=True)
+    transaction_id = models.CharField(max_length=128, blank=True, null=True)
+    order_reference = models.CharField(max_length=128)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default="USD")
+    status = models.CharField(max_length=40)
+    hash_value = models.CharField(max_length=512, blank=True)
+    hash_valid = models.BooleanField(default=False)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    processed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["provider", "transaction_id"]),
+            models.Index(fields=["order_reference"]),
+        ]
+        ordering = ["-created_at"]
 
 
 

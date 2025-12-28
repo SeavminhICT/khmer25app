@@ -4,7 +4,7 @@ from .views import (
     CategoryViewSet, ProductViewSet, UserViewSet, CartViewSet, OrderViewSet,
     OrderItemViewSet,  BannerViewSet,
     SupplierViewSet, register_user, login_user, get_user_info,
-    telegram_webhook,
+    telegram_webhook, create_payway_payment, payway_callback,
 )
 
 router = DefaultRouter()
@@ -31,4 +31,8 @@ urlpatterns = [
     path("user/<int:pk>/", get_user_info, name="get-user-info-pk"),
     path("telegram/webhook", telegram_webhook, name="telegram-webhook"),
     path("telegram/webhook/", telegram_webhook, name="telegram-webhook-slash"),
+    path("payments/create", create_payway_payment, name="payway-create"),
+    path("payments/create/", create_payway_payment, name="payway-create-slash"),
+    path("payments/callback", payway_callback, name="payway-callback"),
+    path("payments/callback/", payway_callback, name="payway-callback-slash"),
 ]

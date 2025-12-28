@@ -15,6 +15,8 @@ from django.utils import timezone
 
 from .models import AdminProfile, Banner, Category, Order, OrderItem, Product, User
 
+PAYWAY_SAMPLE_LINK = "https://link.payway.com.kh/ABAPAYU5401748U"
+
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"
 
@@ -185,6 +187,7 @@ def products_form_view(request):
         price = request.POST.get("price") or "0"
         currency = request.POST.get("currency") or "USD"
         quantity = request.POST.get("quantity") or "0"
+        payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
         image = request.FILES.get("image")
         if name and category_id:
             product = Product.objects.create(
@@ -193,6 +196,7 @@ def products_form_view(request):
                 price=price,
                 currency=currency,
                 quantity=quantity,
+                payway_link=payway_link,
                 image=image,
             )
             return redirect(f"{reverse('admin-products-detail', kwargs={'product_id': product.id})}?status=created")
@@ -213,6 +217,7 @@ def products_edit_view(request, product_id):
         product.price = request.POST.get("price") or product.price
         product.currency = request.POST.get("currency") or product.currency
         product.quantity = request.POST.get("quantity") or product.quantity
+        product.payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
         image = request.FILES.get("image")
         if image:
             product.image = image

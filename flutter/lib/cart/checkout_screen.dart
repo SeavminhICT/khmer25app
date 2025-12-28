@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:khmer25/cart/cart_store.dart';
 import 'package:khmer25/login/auth_store.dart';
@@ -12,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:open_location_code/open_location_code.dart' as olc;
 
-enum PayMethod { cod, qrAba, qrAc }
+enum PayMethod { cod, payway }
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key, this.initialNote});
@@ -39,61 +40,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  bool get needReceipt => method != PayMethod.cod;
+  bool get needReceipt => false;
   String get paymentMethod {
     switch (method) {
       case PayMethod.cod:
         return 'COD';
-      case PayMethod.qrAba:
-        return 'ABA_QR';
-      case PayMethod.qrAc:
-        return 'AC_QR';
+      case PayMethod.payway:
+        return 'ABA_PAYWAY';
     }
-  }
-
-  String get qrAsset {
-    switch (method) {
-      case PayMethod.qrAba:
-        return "assets/qr/aba.jpg";
-      case PayMethod.qrAc:
-        return "assets/qr/ac.jpg";
-      case PayMethod.cod:
-        return "";
-    }
-  }
-
-  Future<void> _showQrDialog() async {
-    if (method == PayMethod.cod) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Scan QR to pay"),
-          content: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              qrAsset,
-              height: 260,
-              width: 260,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 260,
-                width: 260,
-                color: Colors.grey.shade200,
-                alignment: Alignment.center,
-                child: const Text("Cannot load QR image"),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> pickReceipt() async {
@@ -156,13 +110,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    if (needReceipt && receipt == null && receiptBytes == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please upload receipt")));
-      return;
-    }
-
     final locationMeta = await _loadLocationMeta();
     setState(() => loading = true);
 
@@ -176,6 +123,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ? locationAddress
         : 'Not provided';
     final note = widget.initialNote?.trim() ?? '';
+    final totalAmount = total;
     final payload = {
       "customer_name": customerName,
       "name": customerName, // fallback for API compatibility
@@ -184,7 +132,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       "payment_method": paymentMethod, // COD / ABA_QR / AC_QR
       "payment_status": "pending",
       "order_status": "pending",
-      "total_amount": total,
+      "total_amount": totalAmount,
       "note": note,
       "items": CartStore.toPayloadItems(),
       "location_label": locationMeta['label'] ?? '',
@@ -194,9 +142,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final response = await ApiService.createOrderWithReceipt(
         payload,
-        receipt: receipt,
-        receiptBytes: receiptBytes,
-        receiptName: receiptName,
+        receipt: needReceipt ? receipt : null,
+        receiptBytes: needReceipt ? receiptBytes : null,
+        receiptName: needReceipt ? receiptName : null,
       );
 
       final itemCount = CartStore.items.value.fold<int>(
@@ -208,11 +156,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       CartStore.clear();
       await AnalyticsService.trackOrderSubmitted(
         orderCode: orderCode,
-        total: total,
+        total: totalAmount,
         itemCount: itemCount,
       );
 
       if (!mounted) return;
+
+      if (!isCod) {
+        try {
+          // Prefer admin-provided PayWay link on the first cart item, otherwise create one.
+          final link = _resolvePaywayLink();
+          final payUrl = link?.isNotEmpty == true
+              ? _withAmount(link!, totalAmount)
+              : _defaultPaywayLink(totalAmount);
+          final uri = Uri.parse(payUrl);
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Opening PayWay to complete payment..."),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Could not open PayWay: $e")));
+        }
+      }
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -220,7 +190,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           content: Text(
             isCod
                 ? "Order placed successfully. Pay on delivery."
-                : "Payment is pending. We will confirm once the receipt is approved.",
+                : "We opened ABA PayWay to complete your payment. We will confirm once PayWay reports success.",
           ),
           actions: [
             TextButton(
@@ -274,10 +244,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String _encodePlus(double? lat, double? lng) {
     if (lat == null || lng == null) return '';
-    final code = olc.PlusCode.encode(
-      LatLng(lat, lng),
-      codeLength: 10,
-    );
+    final code = olc.PlusCode.encode(LatLng(lat, lng), codeLength: 10);
     return code.toString().split(' ').first;
   }
 
@@ -290,8 +257,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-        
-
             const SizedBox(height: 12),
             const Text(
               "Select payment type",
@@ -315,107 +280,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   },
                 ),
                 _PaymentCard(
-                  label: "Pay with QR",
+                  label: "Pay with QR (ABA PayWay)",
                   icon: Icons.qr_code_scanner,
-                  selected:
-                      method == PayMethod.qrAba || method == PayMethod.qrAc,
+                  selected: method == PayMethod.payway,
                   onTap: () {
                     setState(() {
-                      if (method == PayMethod.cod) {
-                        method = PayMethod.qrAba;
-                      }
+                      method = PayMethod.payway;
                       receipt = null;
                       AnalyticsService.trackPaymentSelected(paymentMethod);
                     });
-                    _showQrDialog();
                   },
                 ),
               ],
             ),
 
-            if (method == PayMethod.qrAba || method == PayMethod.qrAc) ...[
-              const SizedBox(height: 10),
+            if (method == PayMethod.payway) ...[
+              const SizedBox(height: 8),
               const Text(
-                "QR provider",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                "We will open ABA PayWay to show the KHQR for this order. Complete payment there.",
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text("ABA KHQR"),
-                    selected: method == PayMethod.qrAba,
-                    onSelected: (_) {
-                      setState(() {
-                        method = PayMethod.qrAba;
-                        receipt = null;
-                        AnalyticsService.trackPaymentSelected(paymentMethod);
-                      });
-                      _showQrDialog();
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text("AC KHQR"),
-                    selected: method == PayMethod.qrAc,
-                    onSelected: (_) {
-                      setState(() {
-                        method = PayMethod.qrAc;
-                        receipt = null;
-                        AnalyticsService.trackPaymentSelected(paymentMethod);
-                      });
-                      _showQrDialog();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.qr_code),
-                label: const Text("Show QR Code"),
-                onPressed: _showQrDialog,
-              ),
-            ],
-
-            if (needReceipt) ...[
-              const SizedBox(height: 8),
-              const Text("Upload payment receipt"),
-              ElevatedButton.icon(
-                onPressed: pickReceipt,
-                icon: const Icon(Icons.upload),
-                label: Text(
-                  (receipt != null || receiptBytes != null)
-                      ? "Change Receipt"
-                      : "Upload Receipt",
-                ),
-              ),
-
-              if (receipt != null || receiptBytes != null) ...[
-                const SizedBox(height: 10),
-                if (kIsWeb)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.grey.shade200,
-                    ),
-                    child: Text(
-                      receiptName != null
-                          ? "Selected: $receiptName"
-                          : "Receipt selected",
-                    ),
-                  )
-                else if (receipt != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      receipt!,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-              ],
             ],
 
             const SizedBox(height: 16),
@@ -460,6 +343,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (raw is String) return int.tryParse(raw);
     return null;
   }
+
+  String? _resolvePaywayLink() {
+    if (CartStore.items.value.isEmpty) return null;
+    for (final item in CartStore.items.value) {
+      if (item.paywayLink.isNotEmpty) {
+        return item.paywayLink;
+      }
+    }
+    return null;
+  }
+
+  String _defaultPaywayLink(double amount) {
+    const template =
+        'https://link.payway.com.kh/aba?id=66EF3232AF95&dynamic=true&source_caller=sdk&pid=af_app_invites&link_action=abaqr&shortlink=0qeljvur&amount={total}&created_from_app=true&acc=081515245&af_siteid=968860649&userid=66EF3232AF95&code=081311&c=abaqr&af_referrer_uid=1734848770834-9454324';
+    return _withAmount(template, amount);
+  }
+
+  String _withAmount(String url, double amount) {
+    final uri = Uri.parse(url);
+    final params = Map<String, String>.from(uri.queryParameters);
+    params['amount'] = amount.toStringAsFixed(2);
+    return uri.replace(queryParameters: params).toString();
+  }
 }
 
 class _PaymentCard extends StatelessWidget {
@@ -486,8 +392,7 @@ class _PaymentCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color),
-          color:
-              selected ? Colors.green.withValues(alpha: 0.08) : Colors.white,
+          color: selected ? Colors.green.withValues(alpha: 0.08) : Colors.white,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
