@@ -47,7 +47,7 @@ class ProductModel {
       price: displayPrice,
       currency: inferredCurrency,
       unit: (json['unit'] ?? json['quantity']?.toString() ?? '').toString(),
-      tag: (json['category'] ?? json['tag'] ?? '').toString(),
+      tag: (json['tag'] ?? json['category'] ?? '').toString(),
       subCategory: (json['subCategory'] ?? json['subcategory'] ?? '').toString(),
       categoryName: (json['category_name'] ?? json['categoryName'] ?? '').toString(),
       subCategoryName: (json['subcategory_name'] ?? json['subCategoryName'] ?? '').toString(),

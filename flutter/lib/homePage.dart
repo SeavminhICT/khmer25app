@@ -9,6 +9,8 @@ import 'package:khmer25/l10n/lang_store.dart';
 import 'package:khmer25/account/account_screen.dart';
 import 'package:khmer25/login/api_service.dart';
 import 'package:khmer25/models/category_item.dart';
+import 'package:khmer25/product/model/product_model.dart';
+import 'package:khmer25/product/product_detail_screen.dart';
 import 'package:khmer25/product/products_sreen.dart';
 import 'package:khmer25/promotion/promotion_screen.dart';
 import 'package:khmer25/services/analytics_service.dart';
@@ -643,7 +645,7 @@ class _CategoryGridState extends State<CategoryGrid> {
   }
 }
 
-class ProductHorizontalList extends StatelessWidget {
+class ProductHorizontalList extends StatefulWidget {
   final String section;
   final double itemWidth;
 
@@ -653,74 +655,39 @@ class ProductHorizontalList extends StatelessWidget {
     this.itemWidth = 150,
   });
 
-  List<Map<String, dynamic>> get _items {
-    if (section == 'hot') {
-      return [
-        {
-          'img': 'assets/images/products/honey1.jpg',
-          'title': 'ទឹកឃ្មុំក្តៅ 150ml',
-          'price': '3.25',
-        },
-        {
-          'img': 'assets/images/products/honey2.jpg',
-          'title': 'ទឹកឃ្មុំក្តៅ 500ml',
-          'price': '6.5',
-        },
-        {
-          'img': 'assets/images/products/honey3.jpg',
-          'title': 'ទឹកឃ្មុំក្តៅ 1000ml',
-          'price': '0.88',
-        },
-        {
-          'img': 'assets/images/products/honey2.jpg',
-          'title': 'ទឹកឃ្មុំក្តៅ 500ml',
-          'price': '6.5',
-        },
-        {
-          'img': 'assets/images/products/honey3.jpg',
-          'title': 'ទឹកឃ្មុំក្តៅ 1000ml',
-          'price': '0.88',
-        },
-      ];
-    } else {
-      return [
-        {
-          'img': 'assets/images/products/pumpkin.jpg',
-          'title': 'ក្រូចថ្លុង',
-          'price': '1.90',
-          'old': '2.50',
-          'discount': '-31%',
-        },
-        {
-          'img': 'assets/images/products/tomato.jpg',
-          'title': 'ដំឡូង',
-          'price': '2.50',
-          'old': '3.00',
-          'discount': '-30.6%',
-        },
-        {
-          'img': 'assets/images/products/vegetable.jpg',
-          'title': 'បន្លែស្រស់',
-          'price': '1.90',
-          'old': '2.50',
-          'discount': '-24%',
-        },
-        {
-          'img': 'assets/images/products/tomato.jpg',
-          'title': 'ដំឡូង',
-          'price': '2.50',
-          'old': '3.00',
-          'discount': '-30.6%',
-        },
-        {
-          'img': 'assets/images/products/vegetable.jpg',
-          'title': 'បន្លែស្រស់',
-          'price': '1.90',
-          'old': '2.50',
-          'discount': '-24%',
-        },
-      ];
+  @override
+  State<ProductHorizontalList> createState() => _ProductHorizontalListState();
+}
+
+class _ProductHorizontalListState extends State<ProductHorizontalList> {
+  late Future<List<ProductModel>> _futureProducts;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureProducts = ApiService.fetchProducts();
+  }
+
+  List<ProductModel> _filterBySection(List<ProductModel> products) {
+    final key = widget.section.trim().toLowerCase();
+    if (key.isEmpty) return products;
+    return products.where((p) => _matchesSection(p, key)).toList();
+  }
+
+  bool _matchesSection(ProductModel product, String key) {
+    final tags = [
+      product.tag,
+      product.categoryName,
+      product.subCategoryName,
+      product.displayTag,
+    ];
+    for (final tag in tags) {
+      final normalized = tag.trim().toLowerCase();
+      if (normalized.isEmpty) continue;
+      if (normalized == key) return true;
+      if (normalized.contains(key) || key.contains(normalized)) return true;
     }
+    return false;
   }
 
   @override
@@ -729,20 +696,46 @@ class ProductHorizontalList extends StatelessWidget {
 
     return SizedBox(
       height: isTablet ? 280 : 230,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
+      child: FutureBuilder<List<ProductModel>>(
+        future: _futureProducts,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final products = _filterBySection(snapshot.data ?? []);
+          if (products.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return _buildApiList(products, isTablet);
+        },
+      ),
+    );
+  }
 
-        // ⭐ Important — allows scrolling inside SingleChildScrollView
-        primary: false,
-        physics: const BouncingScrollPhysics(),
+  Widget _buildApiList(List<ProductModel> products, bool isTablet) {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      primary: false,
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
+      itemCount: products.length,
+      itemBuilder: (_, i) {
+        final p = products[i];
+        final priceText = p.displayPrice.isNotEmpty ? p.displayPrice : p.price;
 
-        padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
-        itemCount: _items.length,
-        itemBuilder: (_, i) {
-          final p = _items[i];
-
-          return Container(
-            width: itemWidth,
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailScreen(product: p),
+                settings: RouteSettings(name: '/product/${p.id}'),
+              ),
+            );
+          },
+          child: Container(
+            width: widget.itemWidth,
             margin: EdgeInsets.only(right: isTablet ? 16 : 12),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -762,22 +755,18 @@ class ProductHorizontalList extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(12),
                   ),
-                  child: Image.asset(
-                    p['img'],
-                    height: isTablet ? 140 : 100,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                  child: _productImage(
+                    p.imageUrl,
+                    isTablet ? 140 : 100,
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
                       Text(
-                        p['title'],
+                        p.title,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -785,61 +774,66 @@ class ProductHorizontalList extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-
                       const SizedBox(height: 4),
-
-                      // Price + Old Price
-                      Row(
-                        children: [
-                          Text(
-                            '\$${p['price']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (p['old'] != null) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '\$${p['old']}',
-                              style: const TextStyle(
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        priceText,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-
-                      // Discount Badge
-                      if (p['discount'] != null)
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            p['discount'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  Widget _productImage(String url, double height) {
+    final normalized = _normalizeImageUrl(url);
+    if (normalized == null) {
+      return _placeholder(height);
+    }
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(
+        normalized,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(height),
+      );
+    }
+    return Image.network(
+      normalized,
+      height: height,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _placeholder(height),
+    );
+  }
+
+  Widget _placeholder(double height) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      color: Colors.grey.shade100,
+      child: const Icon(Icons.image_not_supported, size: 32, color: Colors.grey),
+    );
+  }
+
+  String? _normalizeImageUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http')) return trimmed;
+    if (trimmed.startsWith('assets/')) return trimmed;
+    if (trimmed.startsWith('/')) return '${ApiService.baseUrl}$trimmed';
+    if (trimmed.startsWith('media/')) return '${ApiService.baseUrl}/$trimmed';
+    if (trimmed.startsWith('static/')) return '${ApiService.baseUrl}/$trimmed';
+    if (trimmed.startsWith('https:/') && !trimmed.startsWith('https://')) {
+      return trimmed.replaceFirst('https:/', 'https://');
+    }
+    return trimmed;
   }
 }
 
