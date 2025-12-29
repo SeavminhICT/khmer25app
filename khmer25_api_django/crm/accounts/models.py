@@ -19,11 +19,17 @@ class Product(models.Model):
         ("USD", "USD"),
         ("KHR", "KHR"),
     ]
+    TAG_CHOICES = [
+        ("", "None"),
+        ("hot", "Hot"),
+        ("discount", "Discount"),
+    ]
     category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="USD")
     quantity = models.PositiveIntegerField()
+    tag = models.CharField(max_length=20, choices=TAG_CHOICES, blank=True, default="")
     image = models.ImageField(upload_to='products/', blank=True, null=True)
     payway_link = models.URLField(blank=True, null=True)
     supplier_id = models.IntegerField(blank=True, null=True)

@@ -96,7 +96,11 @@
       </div>
       <div>
         <label class="form-label">Tags</label>
-        <input class="form-control" placeholder="Summer, promo">
+        <select class="form-select" name="tag">
+          <option value="" {% if not product or not product.tag %}selected{% endif %}>None</option>
+          <option value="hot" {% if product and product.tag == "hot" %}selected{% endif %}>Hot</option>
+          <option value="discount" {% if product and product.tag == "discount" %}selected{% endif %}>Discount</option>
+        </select>
       </div>
     </div>
     <div class="card p-3">

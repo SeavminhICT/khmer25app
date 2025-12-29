@@ -20,6 +20,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -29,12 +30,14 @@ class ProductSerializer(serializers.ModelSerializer):
             "price",
             "currency",
             "quantity",
+            "tag",
             "supplier_id",
             "product_date",
             "image",
             "image_url",
             "payway_link",
             "category",
+            "category_name",
         ]
 
     def get_image_url(self, obj):
@@ -46,6 +49,15 @@ class ProductSerializer(serializers.ModelSerializer):
             return obj.image.url  # Fallback (absolute path not required)
 
         return None
+
+    def get_category_name(self, obj):
+        category = getattr(obj, "category", None)
+        if not category:
+            return ""
+        name = (getattr(category, "title_en", "") or "").strip()
+        if name:
+            return name
+        return (getattr(category, "title_kh", "") or "").strip()
 
 
 class UserSerializer(serializers.ModelSerializer):

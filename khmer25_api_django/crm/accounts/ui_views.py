@@ -187,6 +187,7 @@ def products_form_view(request):
         price = request.POST.get("price") or "0"
         currency = request.POST.get("currency") or "USD"
         quantity = request.POST.get("quantity") or "0"
+        tag = request.POST.get("tag", "").strip()
         payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
         image = request.FILES.get("image")
         if name and category_id:
@@ -196,6 +197,7 @@ def products_form_view(request):
                 price=price,
                 currency=currency,
                 quantity=quantity,
+                tag=tag,
                 payway_link=payway_link,
                 image=image,
             )
@@ -217,6 +219,7 @@ def products_edit_view(request, product_id):
         product.price = request.POST.get("price") or product.price
         product.currency = request.POST.get("currency") or product.currency
         product.quantity = request.POST.get("quantity") or product.quantity
+        product.tag = request.POST.get("tag", "").strip()
         product.payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
         image = request.FILES.get("image")
         if image:
@@ -366,7 +369,7 @@ def profile_view(request):
     profile = AdminProfile.objects.first()
     if not profile:
         profile = AdminProfile.objects.create(
-            full_name="Sokly Dara",
+            full_name="Yon Chandaneth",
             email="admin@khmer25.com",
             phone="",
             role="Admin",

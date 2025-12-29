@@ -122,7 +122,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.select_related("category").all()
     serializer_class = ProductSerializer
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = [AuthTokenAuthentication]
