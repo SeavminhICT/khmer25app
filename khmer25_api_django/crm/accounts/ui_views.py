@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from .models import AdminProfile, Banner, Category, Order, OrderItem, Product, User
 
-PAYWAY_SAMPLE_LINK = "https://link.payway.com.kh/ABAPAYU5401748U"
+PAYWAY_SAMPLE_LINK = "https://link.payway.com.kh/aba?id=BC9C1637D99A&dynamic=true&source_caller=sdk&pid=af_app_invites&link_action=abaqr&shortlink=qom57m9s&created_from_app=true&acc=007253721&af_siteid=968860649&userid=BC9C1637D99A&code=099743&c=abaqr&af_referrer_uid=1695695806092-3948219"
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123"

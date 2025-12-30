@@ -356,7 +356,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String _defaultPaywayLink(double amount) {
     const template =
-        'https://link.payway.com.kh/aba?id=66EF3232AF95&dynamic=true&source_caller=sdk&pid=af_app_invites&link_action=abaqr&shortlink=0qeljvur&amount={total}&created_from_app=true&acc=081515245&af_siteid=968860649&userid=66EF3232AF95&code=081311&c=abaqr&af_referrer_uid=1734848770834-9454324';
+        'https://link.payway.com.kh/aba?id=BC9C1637D99A&dynamic=true&source_caller=sdk&pid=af_app_invites&link_action=abaqr&shortlink=qom57m9s&created_from_app=true&acc=007253721&af_siteid=968860649&userid=BC9C1637D99A&code=099743&c=abaqr&af_referrer_uid=1695695806092-3948219';
     return _withAmount(template, amount);
   }
 
