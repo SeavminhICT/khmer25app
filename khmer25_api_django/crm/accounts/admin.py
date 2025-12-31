@@ -2,6 +2,7 @@ from decimal import Decimal
 import requests
 from django.contrib import admin
 from django import forms
+from django.utils import timezone
 from .models import (
     Category,
     Product,
@@ -11,6 +12,7 @@ from .models import (
     OrderItem,
     Supplier,
     Banner,
+    Payment,
 )
 from .views import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
@@ -127,3 +129,52 @@ class OrderItemAdmin(admin.ModelAdmin):
     autocomplete_fields = ("order", "product")
     list_filter = ("order",)
     search_fields = ("product__name", "order__order_code", "order__customer_name")
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "order",
+        "method",
+        "amount",
+        "status",
+        "receipt_uploaded_at",
+        "paid_at",
+        "created_at",
+    )
+    list_filter = ("status", "method")
+    search_fields = ("order__order_code", "order__customer_name", "transaction_id")
+    actions = ("mark_verified", "mark_rejected")
+
+    def mark_verified(self, request, queryset):
+        count = 0
+        for payment in queryset:
+            payment.status = "verified"
+            payment.paid_at = payment.paid_at or timezone.now()
+            payment.save(update_fields=["status", "paid_at", "updated_at"])
+            order = payment.order
+            if order:
+                if order.order_status == "pending":
+                    order.order_status = "confirmed"
+                order.payment_status = "paid"
+                order.payment_method = payment.method
+                order.save(update_fields=["order_status", "payment_status", "payment_method", "updated_at"])
+            count += 1
+        self.message_user(request, f"{count} payment(s) marked verified.")
+
+    def mark_rejected(self, request, queryset):
+        count = 0
+        for payment in queryset:
+            payment.status = "rejected"
+            payment.paid_at = None
+            payment.save(update_fields=["status", "paid_at", "updated_at"])
+            order = payment.order
+            if order:
+                order.payment_status = "failed"
+                order.save(update_fields=["payment_status", "updated_at"])
+            count += 1
+        self.message_user(request, f"{count} payment(s) rejected.")
+
+    mark_verified.short_description = "Mark payments as verified (paid)"
+    mark_rejected.short_description = "Reject payments (failed)"

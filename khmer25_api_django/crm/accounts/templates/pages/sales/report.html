@@ -9,7 +9,7 @@
     <h3 class="mb-1">Sales Order Report</h3>
     <p class="text-muted mb-0">Parsed Telegram orders with live filtering and export.</p>
   </div>
-  <a class="btn btn-outline-primary" href="?preset={{ preset }}&start={{ start_date }}&end={{ end_date }}&q={{ query }}&export=csv">Export CSV</a>
+  <a class="btn btn-outline-primary" href="?preset={{ preset }}&start={{ start_date }}&end={{ end_date }}&q={{ query }}&time_slot={{ time_slot }}&export=csv">Export CSV</a>
 </div>
 
 <div class="row g-3 mb-4">
@@ -56,7 +56,16 @@
         <input class="form-control" type="date" name="end" value="{{ end_date }}">
       </div>
     </div>
-    <div class="col-lg-4">
+    <div class="col-lg-2">
+      <label class="form-label">Time Slot</label>
+      <select class="form-select" name="time_slot">
+        <option value="all" {% if time_slot == "all" %}selected{% endif %}>All</option>
+        <option value="morning" {% if time_slot == "morning" %}selected{% endif %}>Morning</option>
+        <option value="afternoon" {% if time_slot == "afternoon" %}selected{% endif %}>Afternoon</option>
+        <option value="evening" {% if time_slot == "evening" %}selected{% endif %}>Evening</option>
+      </select>
+    </div>
+    <div class="col-lg-6">
       <label class="form-label">Presets</label>
       <div class="d-flex flex-wrap gap-2">
         <button class="btn btn-outline-primary" name="preset" value="today">Today</button>

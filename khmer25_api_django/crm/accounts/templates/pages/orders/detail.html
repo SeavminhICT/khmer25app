@@ -96,7 +96,11 @@
       {% if payments and payments.0.receipt_image %}
         <div class="mb-3">
           <div class="text-muted small mb-2">Receipt (QR)</div>
-          <img src="{{ payments.0.receipt_image.url }}" alt="Receipt" class="rounded" style="width: 120px; height: 120px; object-fit: cover; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptModal" data-receipt="{{ payments.0.receipt_image.url }}">
+          {% if payments.0.receipt_image.url|lower|slice:"-4:" == ".pdf" %}
+            <a href="{{ payments.0.receipt_image.url }}" target="_blank" rel="noopener">View receipt (PDF)</a>
+          {% else %}
+            <img src="{{ payments.0.receipt_image.url }}" alt="Receipt" class="rounded" style="width: 120px; height: 120px; object-fit: cover; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#receiptModal" data-receipt="{{ payments.0.receipt_image.url }}">
+          {% endif %}
         </div>
       {% endif %}
       <div class="d-flex justify-content-between mb-2">

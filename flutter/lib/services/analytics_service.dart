@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -21,6 +22,11 @@ class AnalyticsService {
 
   static Future<void> init() async {
     try {
+      if (kIsWeb) {
+        debugPrint('⚠️ Analytics disabled on web: Firebase options not configured.');
+        _analytics = null;
+        return;
+      }
       await Firebase.initializeApp();
       _analytics = FirebaseAnalytics.instance;
       _packageInfo = await PackageInfo.fromPlatform();

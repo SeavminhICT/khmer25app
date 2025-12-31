@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import models
+from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 
 # Category
@@ -163,7 +164,13 @@ class Payment(models.Model):
     order = models.ForeignKey(Order, related_name='payments', on_delete=models.CASCADE)
     method = models.CharField(max_length=20, choices=METHOD_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    receipt_image = models.ImageField(upload_to="payments/", blank=True, null=True)
+    receipt_image = models.FileField(
+        upload_to="payments/",
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(["jpg", "jpeg", "png", "pdf"])],
+    )
+    receipt_uploaded_at = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     paid_at = models.DateTimeField(blank=True, null=True)
     currency = models.CharField(max_length=3, default="USD")

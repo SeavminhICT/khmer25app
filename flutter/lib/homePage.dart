@@ -7,6 +7,7 @@ import 'package:khmer25/categories/categories_screen.dart';
 import 'package:khmer25/favorite/favorite_screen.dart';
 import 'package:khmer25/l10n/lang_store.dart';
 import 'package:khmer25/account/account_screen.dart';
+import 'package:khmer25/account/order_screen.dart';
 import 'package:khmer25/login/api_service.dart';
 import 'package:khmer25/models/category_item.dart';
 import 'package:khmer25/product/model/product_model.dart';
@@ -64,11 +65,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   final List<Map<String, dynamic>> _drawerMenu = [
-    {'icon': Icons.person, 'label': 'drawer.profile', 'index': 5},
+    {'icon': Icons.person, 'label': 'drawer.profile', 'index': 6},
     {'icon': Icons.favorite, 'label': 'drawer.favorite', 'index': 4},
     {'icon': Icons.delivery_dining, 'label': 'drawer.delivery', 'index': 3},
     {'icon': Icons.call, 'label': 'drawer.contact', 'index': 0},
-    {'icon': Icons.login, 'label': 'drawer.signin', 'index': 5},
+    {'icon': Icons.login, 'label': 'drawer.signin', 'index': 6},
   ];
 
   void _onDrawerTap(int index) {
@@ -94,6 +95,7 @@ class _HomePageState extends State<HomePage> {
       'Promotions',
       'Products',
       'Favorite',
+      'Orders',
       'Account',
     ];
     if (index < 0 || index >= names.length) return;
@@ -110,6 +112,7 @@ class _HomePageState extends State<HomePage> {
       const PromotionScreen(),
       const ProductsSreen(),
       const FavoriteScreen(),
+      const OrderScreen(),
       const AccountScreen(),
     ];
 
@@ -192,10 +195,10 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.person_outline, color: Colors.black),
             onPressed: () {
               setState(() {
-                _selectedIndex = 5;
-                _drawerIndex = 5;
+                _selectedIndex = 6;
+                _drawerIndex = 6;
               });
-              _trackTab(5);
+              _trackTab(6);
             },
           ),
         ],
@@ -306,6 +309,10 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: const Icon(Icons.favorite_outline),
             label: LangStore.t('nav.favorite'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.receipt_long),
+            label: LangStore.t('nav.orders'),
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.person),

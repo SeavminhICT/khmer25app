@@ -1,6 +1,7 @@
 from .models import User, Banner
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
+from django.utils import timezone
 from .models import (
     Category,
     Product,
@@ -149,6 +150,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    created_at = serializers.SerializerMethodField()
     class Meta:
         model = Order
         fields = [
@@ -160,9 +162,68 @@ class OrderSerializer(serializers.ModelSerializer):
             "payment_status",
             "payment_method",
             "address",
+            "customer_name",
+            "phone",
+            "note",
             "items",
         ]
 
+    def get_created_at(self, obj):
+        try:
+            return timezone.localtime(obj.created_at).isoformat()
+        except Exception:
+            return obj.created_at.isoformat() if obj.created_at else None
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    payment_id = serializers.IntegerField(source="id", read_only=True)
+    order_id = serializers.IntegerField(read_only=True)
+    user_id = serializers.SerializerMethodField()
+    payment_amount = serializers.DecimalField(
+        source="amount", max_digits=12, decimal_places=2, read_only=True
+    )
+    payment_status = serializers.SerializerMethodField()
+    receipt_upload = serializers.SerializerMethodField()
+    uploaded_at = serializers.DateTimeField(source="receipt_uploaded_at", read_only=True)
+
+    class Meta:
+        model = Payment
+        fields = [
+            "payment_id",
+            "user_id",
+            "payment_amount",
+            "payment_status",
+            "receipt_upload",
+            "uploaded_at",
+            "method",
+            "currency",
+            "status",
+            "order_id",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_user_id(self, obj):
+        if obj.order and obj.order.user:
+            return obj.order.user.id
+        return None
+
+    def get_payment_status(self, obj):
+        mapping = {
+            "pending": "Processing",
+            "verified": "Paid",
+            "rejected": "Failed",
+            "failed": "Failed",
+        }
+        return mapping.get(obj.status, obj.status)
+
+    def get_receipt_upload(self, obj):
+        if not obj.receipt_image:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.receipt_image.url)
+        return obj.receipt_image.url
 
 
 

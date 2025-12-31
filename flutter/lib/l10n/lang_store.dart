@@ -25,6 +25,7 @@ const Map<Lang, Map<String, String>> _translations = {
     'nav.promotions': 'Promotions',
     'nav.products': 'Products',
     'nav.favorite': 'Favorite',
+    'nav.orders': 'Orders',
     'nav.account': 'Account',
     'favorite.title': 'My Favorite',
     'favorite.empty': 'No favorites yet.\nTap the heart on a product to save it here.',
@@ -127,6 +128,7 @@ const Map<Lang, Map<String, String>> _translations = {
     'nav.promotions': 'ប្រូម៉ូសិន',
     'nav.products': 'ផលិតផល',
     'nav.favorite': 'ចូលចិត្ត',
+    'nav.orders': 'ការបញ្ជាទិញ',
     'nav.account': 'គណនី',
 
     'drawer.profile': 'ប្រវត្តិរូប',

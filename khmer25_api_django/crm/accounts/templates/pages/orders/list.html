@@ -81,3 +81,31 @@
   </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const socketUrl = `${scheme}://${window.location.host}/ws/orders/`;
+    const socket = new WebSocket(socketUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "created") {
+          Swal.fire({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 3000,
+            icon: "info",
+            title: "New order received",
+            text: `${data.order_code || data.order_id} • $${data.total_amount}`,
+          });
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      } catch (_) {}
+    };
+  })();
+</script>
+{% endblock %}

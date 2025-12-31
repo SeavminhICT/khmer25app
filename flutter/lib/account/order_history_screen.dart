@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:khmer25/login/api_service.dart';
 import 'package:khmer25/login/auth_store.dart';
+import 'package:khmer25/account/order_receipt_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -249,9 +250,18 @@ class _OrderTile extends StatelessWidget {
         ],
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderReceiptScreen(order: order),
+            ),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             children: [
               Container(
@@ -341,7 +351,8 @@ class _OrderTile extends StatelessWidget {
               ],
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -517,9 +528,15 @@ class _OrderTile extends StatelessWidget {
   String _formatDate(String raw) {
     try {
       final dt = DateTime.parse(raw);
-      return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+      return DateFormat('yyyy-MM-dd HH:mm')
+          .format(_toCambodiaTime(dt));
     } catch (_) {
-      return raw;
+      return DateFormat('yyyy-MM-dd HH:mm')
+          .format(_toCambodiaTime(DateTime.now()));
     }
+  }
+
+  DateTime _toCambodiaTime(DateTime input) {
+    return input.toUtc().add(const Duration(hours: 7));
   }
 }

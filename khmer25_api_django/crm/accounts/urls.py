@@ -5,6 +5,7 @@ from .views import (
     OrderItemViewSet,  BannerViewSet,
     SupplierViewSet, register_user, login_user, get_user_info,
     telegram_webhook, create_payway_payment, payway_callback,
+    create_qr_payment, upload_qr_receipt, get_qr_payment,
 )
 
 router = DefaultRouter()
@@ -35,4 +36,10 @@ urlpatterns = [
     path("payments/create/", create_payway_payment, name="payway-create-slash"),
     path("payments/callback", payway_callback, name="payway-callback"),
     path("payments/callback/", payway_callback, name="payway-callback-slash"),
+    path("payment/qr", create_qr_payment, name="qr-payment-create"),
+    path("payment/qr/", create_qr_payment, name="qr-payment-create-slash"),
+    path("payment/qr/receipt", upload_qr_receipt, name="qr-payment-receipt"),
+    path("payment/qr/receipt/", upload_qr_receipt, name="qr-payment-receipt-slash"),
+    path("payment/qr/<int:payment_id>", get_qr_payment, name="qr-payment-detail"),
+    path("payment/qr/<int:payment_id>/", get_qr_payment, name="qr-payment-detail-slash"),
 ]

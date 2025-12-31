@@ -1,12 +1,15 @@
 import hashlib
 import hmac
 import json
+import os
 import secrets
 from decimal import Decimal
 from typing import Optional
-from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse
+from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse, quote
 
 import requests
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
@@ -15,7 +18,13 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    authentication_classes,
+    permission_classes,
+    parser_classes,
+)
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import (
     AllowAny,
@@ -37,8 +46,16 @@ from .models import (
     PaymentTransaction,
 )
 from .serializers import (
-    CategorySerializer, ProductSerializer, UserSerializer, UserPublicSerializer, CartSerializer, 
-    OrderSerializer, OrderItemSerializer, SupplierSerializer,BannerSerializer,
+    CategorySerializer,
+    ProductSerializer,
+    UserSerializer,
+    UserPublicSerializer,
+    CartSerializer,
+    OrderSerializer,
+    OrderItemSerializer,
+    SupplierSerializer,
+    BannerSerializer,
+    PaymentSerializer,
 )
 from .authentication import AuthTokenAuthentication
 
@@ -92,6 +109,84 @@ def _compute_payway_hash(payload: dict, api_key: str) -> str:
     base_string = f"{payload.get('merchant_id', '')}{payload.get('order_id', '')}{payload.get('amount', '')}{payload.get('currency', '')}"
     return hmac.new(api_key.encode("utf-8"), base_string.encode("utf-8"), hashlib.sha512).hexdigest()
 
+def _normalize_payment_method(method: Optional[str]) -> Optional[str]:
+    if not method:
+        return None
+    val = str(method).strip().upper()
+    mapping = {
+        "COD": "COD",
+        "CASH_ON_DELIVERY": "COD",
+        "ABA": "ABA_QR",
+        "ABA_QR": "ABA_QR",
+        "QR": "ABA_QR",
+        "KHQR": "ABA_QR",
+        "AC": "AC_QR",
+        "AC_QR": "AC_QR",
+        "ABA_PAYWAY": "ABA_PAYWAY",
+    }
+    return mapping.get(val)
+
+def _get_qr_code_url(method: str, request=None) -> str:
+    qr_map = getattr(settings, "PAYMENT_QR_CODE_URLS", {}) or {}
+    method = (method or "").upper()
+    url = qr_map.get(method)
+    if not url:
+        if method == "ABA_QR":
+            url = getattr(settings, "ABA_QR_CODE_URL", "") or ""
+        elif method == "AC_QR":
+            url = getattr(settings, "AC_QR_CODE_URL", "") or ""
+    if not url:
+        return ""
+    if request:
+        try:
+            return request.build_absolute_uri(url)
+        except Exception:
+            return url
+    return url
+
+def _build_qr_image_url(data: str) -> str:
+    template = getattr(settings, "PAYMENT_QR_GENERATOR_URL", "") or ""
+    if not template or "{data}" not in template:
+        return ""
+    return template.format(data=quote(data, safe=""))
+
+def _validate_receipt_upload(upload):
+    if not upload:
+        return "Receipt file is required."
+    max_mb = getattr(settings, "PAYMENT_RECEIPT_MAX_MB", 5)
+    try:
+        max_bytes = int(max_mb) * 1024 * 1024
+    except Exception:
+        max_bytes = 5 * 1024 * 1024
+    if upload.size > max_bytes:
+        return f"File too large. Max size is {max_mb} MB."
+    allowed_exts = {".jpg", ".jpeg", ".png", ".pdf"}
+    ext = os.path.splitext(upload.name)[1].lower()
+    if ext not in allowed_exts:
+        return "Unsupported file type. Use jpg, png, or pdf."
+    # Some clients send a generic content type; extension check is primary.
+    return None
+
+def _broadcast_order_event(order: Order, event_type: str, extra: Optional[dict] = None):
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        return
+    payload = {
+        "type": "order.event",
+        "event": event_type,
+        "order_id": order.id,
+        "order_code": order.order_code,
+        "order_status": order.order_status,
+        "payment_status": order.payment_status,
+        "payment_method": order.payment_method,
+        "total_amount": str(order.total_amount),
+        "created_at": timezone.localtime(order.created_at).isoformat(),
+    }
+    if extra:
+        payload.update(extra)
+    async_to_sync(channel_layer.group_send)("orders", payload)
+    if order.user_id:
+        async_to_sync(channel_layer.group_send)(f"user_{order.user_id}", payload)
 
 def _get_order_by_identifier(identifier: Optional[str]) -> Optional[Order]:
     if not identifier:
@@ -289,31 +384,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                 method=payment_method,
                 amount=total,
                 receipt_image=receipt_file,
+                receipt_uploaded_at=timezone.now(),
                 status="pending",
             )
 
-        self._send_telegram_notification(order, request)
+        if payment_method == "COD":
+            self._send_telegram_notification(order, request)
+
+        _broadcast_order_event(order, "created")
 
         serializer = self.get_serializer(order)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def _normalize_payment_method(self, method: Optional[str]) -> Optional[str]:
-        if not method:
-            return None
-        val = method.strip().upper()
-        mapping = {
-            "COD": "COD",
-            "CASH_ON_DELIVERY": "COD",
-            "ABA": "ABA_QR",
-            "ABA_QR": "ABA_QR",
-            "QR": "ABA_QR",
-            "KHQR": "ABA_QR",
-            "AC": "AC_QR",
-            "AC_QR": "AC_QR",
-            "ABA_PAYWAY": "ABA_PAYWAY",
-        }
-        return mapping.get(val)
+        return _normalize_payment_method(method)
 
     def _send_telegram_notification(self, order: Order, request):
         """
@@ -339,7 +424,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     except Exception:
                         receipt_url = payment.receipt_image.url
 
-            created_at = order.created_at.strftime("%Y-%m-%d %H:%M")
+            created_at = timezone.localtime(order.created_at).strftime("%Y-%m-%d %H:%M")
             title_prefix = "New COD Order" if order.payment_method == "COD" else "New PayByQR Order"
             lines = [
                 f"🧾 {title_prefix} ({escape(order.payment_status).title()})",
@@ -417,6 +502,103 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             # Do not break order creation if Telegram fails
             print(f"[telegram] failed to send notification: {exc}")
+
+
+def _send_telegram_receipt_upload(order: Order, payment: Payment, request):
+    try:
+        token, chat_id = _get_telegram_config()
+        if not token or not chat_id:
+            return
+        receipt_file = None
+        receipt_url = None
+        if payment.receipt_image:
+            try:
+                receipt_file = payment.receipt_image.path
+            except Exception:
+                receipt_file = None
+            try:
+                receipt_url = request.build_absolute_uri(payment.receipt_image.url)
+            except Exception:
+                receipt_url = payment.receipt_image.url
+        created_at = timezone.localtime(order.created_at).strftime("%Y-%m-%d %H:%M")
+        status_map = {
+            "pending": "⏳ Pending",
+            "verified": "✅ Paid",
+            "rejected": "❌ Rejected",
+            "failed": "❌ Failed",
+        }
+        status_text = status_map.get(payment.status, payment.status)
+        method_labels = {
+            "COD": "Cash on Delivery (COD)",
+            "ABA_QR": "ABA QR",
+            "AC_QR": "AC QR",
+            "ABA_PAYWAY": "ABA PayWay",
+        }
+        method_text = method_labels.get(payment.method, payment.method)
+        lines = [
+            "🧾 PAYMENT RECEIPT UPLOADED",
+            "",
+            f"Order Code: {order.order_code}",
+            f"Date: {created_at}",
+            "",
+            "👤 Customer Information",
+            f"Name: {order.customer_name or 'Guest'}",
+            f"Phone: {order.phone or 'N/A'}",
+            f"Address: {order.address or '-'}",
+            "",
+            "💳 Payment Details",
+            f"Method: {method_text}",
+            f"Status: {status_text}",
+            "",
+            "📦 Order Items",
+        ]
+        index = 1
+        for item in order.items.all():
+            lines.extend(
+                [
+                    f"{index}️⃣ {item.product_name}",
+                    f"• Qty: {item.quantity}",
+                    f"• Price: ${item.price}",
+                    f"• Subtotal: ${item.subtotal or 0}",
+                    "",
+                ]
+            )
+            index += 1
+        lines.extend(
+            [
+                "💰 Total Amount",
+                f"🟢 ${order.total_amount}",
+            ]
+        )
+        if order.note:
+            lines.extend(["", "📝 Note", order.note])
+        text = "\n".join(lines)
+        base = f"https://api.telegram.org/bot{token}"
+        if receipt_file:
+            with open(receipt_file, "rb") as fh:
+                files = {"photo": fh}
+                payload = {"chat_id": chat_id, "caption": text}
+                requests.post(
+                    f"{base}/sendPhoto",
+                    data=payload,
+                    files=files,
+                    timeout=10,
+                )
+        elif receipt_url:
+            payload = {"chat_id": chat_id, "photo": receipt_url, "caption": text}
+            requests.post(
+                f"{base}/sendPhoto",
+                data=payload,
+                timeout=10,
+            )
+        else:
+            requests.post(
+                f"{base}/sendMessage",
+                json={"chat_id": chat_id, "text": text},
+                timeout=10,
+            )
+    except Exception as exc:
+        print(f"[telegram] receipt upload notify failed: {exc}")
 
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
@@ -564,6 +746,156 @@ def create_payway_payment(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@authentication_classes([AuthTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def create_qr_payment(request):
+    data = request.data or {}
+    order_ref = data.get("order_id") or data.get("order_code")
+    if not order_ref:
+        return Response(
+            {"detail": "order_id (or order_code) is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    order = _get_order_by_identifier(order_ref)
+    if not order:
+        return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    user = getattr(request, "user", None)
+    if order.user and user and getattr(user, "is_authenticated", False):
+        if order.user.id != user.id:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    payment_method = _normalize_payment_method(
+        data.get("payment_method") or data.get("method") or order.payment_method or "ABA_QR"
+    )
+    if payment_method not in ("ABA_QR", "AC_QR"):
+        return Response(
+            {"detail": "Unsupported QR payment method."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        amount_raw = data.get("amount", order.total_amount)
+        amount = Decimal(str(amount_raw)).quantize(Decimal("0.01"))
+    except Exception:
+        return Response(
+            {"detail": "Invalid amount supplied."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    expected_amount = Decimal(str(order.total_amount)).quantize(Decimal("0.01"))
+    if amount != expected_amount:
+        return Response(
+            {
+                "detail": "Amount does not match order total.",
+                "expected_total": str(expected_amount),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with transaction.atomic():
+        payment, _ = Payment.objects.get_or_create(
+            order=order,
+            method=payment_method,
+            defaults={
+                "amount": amount,
+                "currency": "USD",
+                "status": "pending",
+                "provider": "QR_MANUAL",
+            },
+        )
+        payment.amount = amount
+        payment.currency = getattr(payment, "currency", "USD") or "USD"
+        payment.provider = "QR_MANUAL"
+        if payment.status not in ("verified", "failed", "rejected"):
+            payment.status = "pending"
+        payment.save()
+
+        if order.payment_method != payment_method:
+            order.payment_method = payment_method
+        if order.payment_status != "pending":
+            order.payment_status = "pending"
+        order.save(update_fields=["payment_method", "payment_status", "updated_at"])
+
+    payload = PaymentSerializer(payment, context={"request": request}).data
+    sample_link = getattr(settings, "PAYWAY_SAMPLE_LINK", "") or ""
+    payway_link = _with_amount_url(sample_link, amount)
+    qr_code_url = _get_qr_code_url(payment_method, request=request)
+    if payway_link:
+        qr_code_url = _build_qr_image_url(payway_link) or qr_code_url
+    payload["qr_code_url"] = qr_code_url
+    payload["payway_link"] = payway_link
+    return Response(payload, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@authentication_classes([AuthTokenAuthentication])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_qr_receipt(request):
+    payment_id = request.data.get("payment_id")
+    if not payment_id:
+        return Response(
+            {"detail": "payment_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    payment = Payment.objects.select_related("order", "order__user").filter(pk=payment_id).first()
+    if not payment:
+        return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    user = getattr(request, "user", None)
+    if payment.order and payment.order.user and user and getattr(user, "is_authenticated", False):
+        if payment.order.user.id != user.id:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    receipt_file = request.data.get("file") or request.data.get("receipt")
+    error = _validate_receipt_upload(receipt_file)
+    if error:
+        return Response({"detail": error}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment.receipt_image = receipt_file
+    payment.receipt_uploaded_at = timezone.now()
+    if payment.status in ("rejected", "failed"):
+        payment.status = "pending"
+    payment.save(update_fields=["receipt_image", "receipt_uploaded_at", "status", "updated_at"])
+
+    order = payment.order
+    if order and order.payment_status != "paid":
+        order.payment_status = "pending"
+        order.save(update_fields=["payment_status", "updated_at"])
+
+    if order:
+        _send_telegram_receipt_upload(order, payment, request)
+        _broadcast_order_event(
+            order,
+            "receipt_uploaded",
+            extra={"payment_id": payment.id},
+        )
+
+    payload = PaymentSerializer(payment, context={"request": request}).data
+    return Response(payload, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([AuthTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_qr_payment(request, payment_id: int):
+    payment = Payment.objects.select_related("order", "order__user").filter(pk=payment_id).first()
+    if not payment:
+        return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    user = getattr(request, "user", None)
+    if payment.order and payment.order.user and user and getattr(user, "is_authenticated", False):
+        if payment.order.user.id != user.id:
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    payload = PaymentSerializer(payment, context={"request": request}).data
+    return Response(payload, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
@@ -733,7 +1065,7 @@ def _send_telegram_payment_update(order: Order, payment: Payment, tx: PaymentTra
     if not token or not chat_id:
         return
 
-    paid_time = (payment.paid_at or timezone.now()).strftime("%Y-%m-%d %H:%M")
+    paid_time = timezone.localtime(payment.paid_at or timezone.now()).strftime("%Y-%m-%d %H:%M")
     lines = [
         "💳 ABA PayWay Payment",
         f"Order: {order.order_code}",
@@ -786,6 +1118,7 @@ def _apply_order_decision(order: Order, action: str):
             payment.paid_at = None
         payment.save(update_fields=["status", "paid_at"])
 
+    _broadcast_order_event(order, f"status_{action}")
     return True, msg
 
 @csrf_exempt

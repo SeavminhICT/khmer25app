@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-k^4i4!o0!4l8)lu6nzu8+w2*$@8oa-p8wn1!g!m@e%=f7^xu#0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*", "127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'channels',
     'accounts',
             # your custom app
 ]
@@ -107,6 +108,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'crm.wsgi.application'
+ASGI_APPLICATION = 'crm.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 
 # Database
@@ -144,7 +152,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Phnom_Penh'
 
 USE_I18N = True
 
@@ -166,11 +174,26 @@ PAYWAY_MERCHANT_ID = os.getenv("PAYWAY_MERCHANT_ID", "")
 PAYWAY_API_KEY = os.getenv("PAYWAY_API_KEY", "")
 PAYWAY_BASE_URL = os.getenv("PAYWAY_BASE_URL", "https://link.payway.com.kh")
 PAYWAY_CHECKOUT_URL = os.getenv("PAYWAY_CHECKOUT_URL", PAYWAY_BASE_URL)
+PAYWAY_SAMPLE_LINK = os.getenv(
+    "PAYWAY_SAMPLE_LINK",
+    "https://link.payway.com.kh/aba?id=BC9C1637D99A&dynamic=true&source_caller=sdk&pid=af_app_invites&link_action=abaqr&shortlink=qom57m9s&created_from_app=true&acc=007253721&af_siteid=968860649&userid=BC9C1637D99A&code=099743&c=abaqr&af_referrer_uid=1695695806092-3948219",
+)
+PAYMENT_QR_GENERATOR_URL = os.getenv(
+    "PAYMENT_QR_GENERATOR_URL",
+    "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data={data}",
+)
 PAYWAY_RETURN_URL = os.getenv("PAYWAY_RETURN_URL", "")
 PAYWAY_CALLBACK_URL = os.getenv(
     "PAYWAY_CALLBACK_URL", "https://example.com/api/payments/callback"
 )
 PAYWAY_CURRENCY = os.getenv("PAYWAY_CURRENCY", "USD")
+PAYMENT_RECEIPT_MAX_MB = int(os.getenv("PAYMENT_RECEIPT_MAX_MB", "5"))
+ABA_QR_CODE_URL = os.getenv("ABA_QR_CODE_URL", f"{MEDIA_URL}qr/aba.jpg")
+AC_QR_CODE_URL = os.getenv("AC_QR_CODE_URL", f"{MEDIA_URL}qr/ac.jpg")
+PAYMENT_QR_CODE_URLS = {
+    "ABA_QR": ABA_QR_CODE_URL,
+    "AC_QR": AC_QR_CODE_URL,
+}
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")

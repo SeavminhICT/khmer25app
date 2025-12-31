@@ -9,7 +9,14 @@ import 'package:khmer25/login/news_item.dart';
 import 'package:khmer25/product/model/product_model.dart';
 
 class ApiService {
-  static const String baseUrl = "http://127.0.0.1:8000";
+  static String get baseUrl {
+    const env = String.fromEnvironment('API_BASE_URL');
+    if (env.isNotEmpty) return env;
+    if (kIsWeb) return "http://127.0.0.1:8000";
+    if (Platform.isAndroid) return "http://10.0.2.2:8000";
+    if (Platform.isIOS) return "http://127.0.0.1:8000";
+    return "http://127.0.0.1:8000";
+  }
   static const Map<String, String> _jsonHeaders = {
     "Content-Type": "application/json",
   };
@@ -23,6 +30,14 @@ class ApiService {
       ..._jsonHeaders,
       "Authorization": "Token $token",
     };
+  }
+
+  static Map<String, String> _authMultipartHeaders() {
+    final token = AuthStore.token;
+    if (token == null || token.isEmpty) {
+      return {};
+    }
+    return {"Authorization": "Token $token"};
   }
 
   // ---------------- USERS ----------------
@@ -220,7 +235,7 @@ class ApiService {
       "POST",
       Uri.parse("$baseUrl/api/orders/"),
     );
-    req.headers.addAll(_authHeaders());
+    req.headers.addAll(_authMultipartHeaders());
 
     req.fields["payload"] = jsonEncode(payload);
 
@@ -243,6 +258,63 @@ class ApiService {
       return jsonDecode(res.body);
     }
     throw Exception("Order failed (${res.statusCode}): ${res.body}");
+  }
+
+  static Future<Map<String, dynamic>> createQrPayment({
+    required String orderId,
+    String method = "ABA_QR",
+    double? amount,
+  }) async {
+    await AuthStore.init();
+    final uri = Uri.parse("$baseUrl/api/payment/qr");
+    final body = {
+      "order_id": orderId,
+      "payment_method": method,
+      if (amount != null) "amount": amount,
+    };
+    final res = await http.post(
+      uri,
+      headers: _authHeaders(),
+      body: jsonEncode(body),
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body);
+    }
+    throw Exception("QR payment failed (${res.statusCode}): ${res.body}");
+  }
+
+  static Future<Map<String, dynamic>> uploadQrReceipt({
+    required int paymentId,
+    File? receipt,
+    Uint8List? receiptBytes,
+    String? receiptName,
+  }) async {
+    await AuthStore.init();
+    final req = http.MultipartRequest(
+      "POST",
+      Uri.parse("$baseUrl/api/payment/qr/receipt"),
+    );
+    req.headers.addAll(_authMultipartHeaders());
+    req.fields["payment_id"] = paymentId.toString();
+
+    if (receipt != null && !kIsWeb) {
+      req.files.add(await http.MultipartFile.fromPath("file", receipt.path));
+    } else if (receiptBytes != null && receiptBytes.isNotEmpty) {
+      req.files.add(
+        http.MultipartFile.fromBytes(
+          "file",
+          receiptBytes,
+          filename: receiptName ?? "receipt.jpg",
+        ),
+      );
+    }
+
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body);
+    }
+    throw Exception("Receipt upload failed (${res.statusCode}): ${res.body}");
   }
 
   static Future<String> createPaywayPayment({

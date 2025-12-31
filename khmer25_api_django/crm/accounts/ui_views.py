@@ -393,6 +393,7 @@ def sales_report_view(request):
     start_date = request.GET.get("start")
     end_date = request.GET.get("end")
     query = request.GET.get("q", "").strip()
+    time_slot = request.GET.get("time_slot", "all").strip().lower()
 
     if preset == "last7":
         start = local_now.date() - timedelta(days=6)
@@ -423,7 +424,21 @@ def sales_report_view(request):
             Q(order_code__icontains=query) | Q(phone__icontains=query)
         )
 
-    orders_qs = orders_qs.order_by("-created_at")
+    orders_qs = list(orders_qs.order_by("-created_at"))
+
+    if time_slot != "all":
+        def _match_slot(dt):
+            local_dt = timezone.localtime(dt)
+            hour = local_dt.hour
+            if time_slot == "morning":
+                return 6 <= hour < 12
+            if time_slot == "afternoon":
+                return 12 <= hour < 18
+            if time_slot == "evening":
+                return 18 <= hour < 24
+            return True
+
+        orders_qs = [order for order in orders_qs if _match_slot(order.created_at)]
 
     orders = []
     for order in orders_qs:
@@ -489,6 +504,7 @@ def sales_report_view(request):
         "start_date": start.strftime("%Y-%m-%d"),
         "end_date": end.strftime("%Y-%m-%d"),
         "query": query,
+        "time_slot": time_slot,
         "todays_count": todays_count,
         "total_orders": total_orders,
         "total_revenue": total_revenue,
