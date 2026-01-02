@@ -102,6 +102,15 @@ def _with_amount_url(url: str, amount: Decimal) -> str:
         return url
 
 
+def _build_location_link(address: str) -> str:
+    if not address:
+        return ""
+    query = quote(str(address).strip())
+    if not query:
+        return ""
+    return f"https://www.google.com/maps/search/?api=1&query={query}"
+
+
 def _compute_payway_hash(payload: dict, api_key: str) -> str:
     """
     PayWay HMAC signature: merchant_id + order_id + amount + currency hashed with API key.
@@ -426,6 +435,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
             created_at = timezone.localtime(order.created_at).strftime("%Y-%m-%d %H:%M")
             title_prefix = "New COD Order" if order.payment_method == "COD" else "New PayByQR Order"
+            location_link = _build_location_link(order.address)
             lines = [
                 f"🧾 {title_prefix} ({escape(order.payment_status).title()})",
                 f"OrderCode: {escape(order.order_code)}",
@@ -436,6 +446,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 f"Status: {escape(order.payment_status)}",
                 f"Date: {created_at}",
             ]
+            if location_link:
+                lines.append(f'Location: <a href="{escape(location_link)}">Open Map</a>')
             if order.note:
                 lines.append(f"Note: {escape(order.note)}")
 
@@ -535,6 +547,7 @@ def _send_telegram_receipt_upload(order: Order, payment: Payment, request):
             "ABA_PAYWAY": "ABA PayWay",
         }
         method_text = method_labels.get(payment.method, payment.method)
+        location_link = _build_location_link(order.address)
         lines = [
             "🧾 PAYMENT RECEIPT UPLOADED",
             "",
@@ -552,6 +565,8 @@ def _send_telegram_receipt_upload(order: Order, payment: Payment, request):
             "",
             "📦 Order Items",
         ]
+        if location_link:
+            lines.extend(["📍 Location", location_link, ""])
         index = 1
         for item in order.items.all():
             lines.extend(
@@ -1066,6 +1081,7 @@ def _send_telegram_payment_update(order: Order, payment: Payment, tx: PaymentTra
         return
 
     paid_time = timezone.localtime(payment.paid_at or timezone.now()).strftime("%Y-%m-%d %H:%M")
+    location_link = _build_location_link(order.address)
     lines = [
         "💳 ABA PayWay Payment",
         f"Order: {order.order_code}",
@@ -1074,6 +1090,8 @@ def _send_telegram_payment_update(order: Order, payment: Payment, tx: PaymentTra
         f"Status: {payment.status}",
         f"Paid at: {paid_time}",
     ]
+    if location_link:
+        lines.append(f"Location: {location_link}")
     text = "\n".join(lines)
     try:
         base = f"https://api.telegram.org/bot{token}"
