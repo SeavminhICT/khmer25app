@@ -151,6 +151,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     created_at = serializers.SerializerMethodField()
+    receipt_url = serializers.SerializerMethodField()
     class Meta:
         model = Order
         fields = [
@@ -161,6 +162,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "order_status",
             "payment_status",
             "payment_method",
+            "receipt_url",
             "address",
             "customer_name",
             "phone",
@@ -173,6 +175,15 @@ class OrderSerializer(serializers.ModelSerializer):
             return timezone.localtime(obj.created_at).isoformat()
         except Exception:
             return obj.created_at.isoformat() if obj.created_at else None
+
+    def get_receipt_url(self, obj):
+        payment = obj.payments.filter(receipt_image__isnull=False).first()
+        if not payment or not payment.receipt_image:
+            return None
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(payment.receipt_image.url)
+        return payment.receipt_image.url
 
 
 class PaymentSerializer(serializers.ModelSerializer):

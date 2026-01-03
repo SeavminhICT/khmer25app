@@ -74,6 +74,47 @@
   </div>
 </div>
 
+<div class="card p-3 mb-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="mb-0">Orders by Time of Day</h5>
+    <div class="text-muted small">All time</div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="border rounded p-3 h-100">
+        <div class="text-muted">Morning</div>
+        <div class="kpi-value">{{ morning_orders }}</div>
+        <div class="text-muted small">00:00 - 11:59</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="border rounded p-3 h-100">
+        <div class="text-muted">Afternoon</div>
+        <div class="kpi-value">{{ afternoon_orders }}</div>
+        <div class="text-muted small">12:00 - 17:59</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="border rounded p-3 h-100">
+        <div class="text-muted">Evening</div>
+        <div class="kpi-value">{{ evening_orders }}</div>
+        <div class="text-muted small">18:00 - 23:59</div>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div>
+      <div class="text-muted small">Total amount (selected slot)</div>
+      <div class="kpi-value">$<span id="timeSlotAmount">{{ morning_amount }}</span></div>
+    </div>
+    <div class="btn-group" role="group" aria-label="Time slot selector">
+      <button class="btn btn-outline-primary btn-sm time-slot-btn" type="button" data-slot="morning" data-amount="{{ morning_amount }}">Morning</button>
+      <button class="btn btn-outline-primary btn-sm time-slot-btn" type="button" data-slot="afternoon" data-amount="{{ afternoon_amount }}">Afternoon</button>
+      <button class="btn btn-outline-primary btn-sm time-slot-btn" type="button" data-slot="evening" data-amount="{{ evening_amount }}">Evening</button>
+    </div>
+  </div>
+</div>
+
 <div class="row g-3 mb-4">
   <div class="col-lg-7">
     <div class="card p-3">
@@ -81,7 +122,9 @@
         <h5 class="mb-0">Sales Trend</h5>
         <div class="text-muted small">Last 30 days</div>
       </div>
-      <div class="bg-light rounded" style="height: 260px;"></div>
+      <div style="height: 260px;">
+        <canvas id="salesTrendChart" aria-label="Sales trend chart" role="img"></canvas>
+      </div>
     </div>
   </div>
   <div class="col-lg-5">
@@ -90,19 +133,18 @@
         <h5 class="mb-0">Orders by Status</h5>
         <div class="text-muted small">This week</div>
       </div>
-      <div class="bg-light rounded" style="height: 200px;"></div>
-      <div class="d-flex justify-content-between small mt-3">
-        <span><span class="badge badge-soft badge-success">Paid</span> 52%</span>
-        <span><span class="badge badge-soft badge-warning">Pending</span> 32%</span>
-        <span><span class="badge badge-soft badge-danger">Cancelled</span> 16%</span>
+      <div style="height: 200px;">
+        <canvas id="ordersStatusChart" aria-label="Orders by status chart" role="img"></canvas>
       </div>
     </div>
     <div class="card p-3">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <h5 class="mb-0">Top Products</h5>
-        <div class="text-muted small">By revenue</div>
+        <div class="text-muted small">All time</div>
       </div>
-      <div class="bg-light rounded" style="height: 140px;"></div>
+      <div style="height: 140px;">
+        <canvas id="topProductsChart" aria-label="Top products chart" role="img"></canvas>
+      </div>
     </div>
   </div>
 </div>
@@ -149,4 +191,156 @@
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  {{ sales_trend_labels|json_script:"salesTrendLabels" }}
+  {{ sales_trend_values|json_script:"salesTrendValues" }}
+  {{ status_labels|json_script:"statusLabels" }}
+  {{ status_values|json_script:"statusValues" }}
+  {{ top_product_labels|json_script:"topProductLabels" }}
+  {{ top_product_morning|json_script:"topProductMorning" }}
+  {{ top_product_afternoon|json_script:"topProductAfternoon" }}
+  {{ top_product_evening|json_script:"topProductEvening" }}
+  <script>
+    const salesTrendLabels = JSON.parse(document.getElementById("salesTrendLabels").textContent);
+    const salesTrendValues = JSON.parse(document.getElementById("salesTrendValues").textContent);
+    const statusLabels = JSON.parse(document.getElementById("statusLabels").textContent);
+    const statusValues = JSON.parse(document.getElementById("statusValues").textContent);
+    const topProductLabels = JSON.parse(document.getElementById("topProductLabels").textContent);
+    const topProductMorning = JSON.parse(document.getElementById("topProductMorning").textContent);
+    const topProductAfternoon = JSON.parse(document.getElementById("topProductAfternoon").textContent);
+    const topProductEvening = JSON.parse(document.getElementById("topProductEvening").textContent);
+
+    const salesTrendCtx = document.getElementById("salesTrendChart");
+    if (salesTrendCtx) {
+      new Chart(salesTrendCtx, {
+        type: "line",
+        data: {
+          labels: salesTrendLabels,
+          datasets: [
+            {
+              label: "Sales ($)",
+              data: salesTrendValues,
+              borderColor: "#0d6efd",
+              backgroundColor: "rgba(13, 110, 253, 0.12)",
+              fill: true,
+              tension: 0.35,
+              pointRadius: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              ticks: {
+                callback: (value) => `$${value}`,
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+        },
+      });
+    }
+
+    const ordersStatusCtx = document.getElementById("ordersStatusChart");
+    if (ordersStatusCtx) {
+      new Chart(ordersStatusCtx, {
+        type: "doughnut",
+        data: {
+          labels: statusLabels,
+          datasets: [
+            {
+              data: statusValues,
+              backgroundColor: ["#f4b400", "#5f6368", "#1a73e8", "#34a853", "#ea4335"],
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+            },
+          },
+        },
+      });
+    }
+
+    const topProductsCtx = document.getElementById("topProductsChart");
+    if (topProductsCtx) {
+      new Chart(topProductsCtx, {
+        type: "bar",
+        data: {
+          labels: topProductLabels,
+          datasets: [
+            {
+              label: "Morning",
+              data: topProductMorning,
+              backgroundColor: "#0d6efd",
+              borderRadius: 6,
+            },
+            {
+              label: "Afternoon",
+              data: topProductAfternoon,
+              backgroundColor: "#ffc107",
+              borderRadius: 6,
+            },
+            {
+              label: "Evening",
+              data: topProductEvening,
+              backgroundColor: "#198754",
+              borderRadius: 6,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: "y",
+          plugins: {
+            legend: {
+              position: "bottom",
+            },
+          },
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+            },
+          },
+        },
+      });
+    }
+
+    const timeSlotAmount = document.getElementById("timeSlotAmount");
+    const timeSlotButtons = document.querySelectorAll(".time-slot-btn");
+    if (timeSlotAmount && timeSlotButtons.length) {
+      const setActive = (activeButton) => {
+        timeSlotButtons.forEach((button) => {
+          button.classList.toggle("active", button === activeButton);
+        });
+      };
+      timeSlotButtons.forEach((button, index) => {
+        if (index === 0) {
+          setActive(button);
+        }
+        button.addEventListener("click", () => {
+          timeSlotAmount.textContent = button.dataset.amount || "0.00";
+          setActive(button);
+        });
+      });
+    }
+  </script>
 {% endblock %}

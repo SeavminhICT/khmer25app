@@ -13,6 +13,7 @@ class OrderReceiptScreen extends StatelessWidget {
     final status = (order['order_status'] ?? 'pending').toString();
     final paymentStatus = (order['payment_status'] ?? 'pending').toString();
     final paymentMethod = (order['payment_method'] ?? '').toString();
+    final receiptUrl = _receiptUrl(order);
     final customerName = (order['customer_name'] ?? 'Guest').toString();
     final phone = (order['phone'] ?? 'N/A').toString();
     final address = (order['address'] ?? '').toString();
@@ -71,6 +72,11 @@ class OrderReceiptScreen extends StatelessWidget {
           _summaryRow('Tax', tax),
           const Divider(height: 24),
           _summaryRow('Grand Total', total, bold: true),
+          if (receiptUrl.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _sectionTitle('📎 Payment Receipt'),
+            _receiptPreview(receiptUrl),
+          ],
           if (note.isNotEmpty) ...[
             const SizedBox(height: 14),
             _sectionTitle('📌 Note'),
@@ -146,6 +152,39 @@ class OrderReceiptScreen extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Text(note),
+    );
+  }
+
+  String _receiptUrl(Map<String, dynamic> order) {
+    final direct = (order['receipt_url'] ?? '').toString();
+    if (direct.isNotEmpty) return direct;
+    final payment = order['payment'] ?? order['receipt'];
+    if (payment is Map) {
+      final v = payment['receipt_upload'] ?? payment['receipt_url'];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString();
+      }
+    }
+    return '';
+  }
+
+  Widget _receiptPreview(String url) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        url,
+        height: 220,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return Container(
+            height: 220,
+            color: Colors.grey.shade200,
+            alignment: Alignment.center,
+            child: const Text('Unable to load receipt'),
+          );
+        },
+      ),
     );
   }
 

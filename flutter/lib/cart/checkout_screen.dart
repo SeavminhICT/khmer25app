@@ -182,7 +182,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         throw Exception("QR payment_id missing.");
       }
 
-      await _showQrDialog(
+      final receiptUrl = await _showQrDialog(
         paymentId: paymentId,
         qrCodeUrl: qrUrl,
         paywayLink: paywayLink,
@@ -192,6 +192,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       final localReceipt = Map<String, dynamic>.from(response);
       localReceipt['created_at'] = DateTime.now().toIso8601String();
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        localReceipt['receipt_url'] = receiptUrl;
+      }
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -243,7 +246,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return code.toString().split(' ').first;
   }
 
-  Future<void> _showQrDialog({
+  Future<String?> _showQrDialog({
     required int paymentId,
     required String qrCodeUrl,
     required String paywayLink,
@@ -253,6 +256,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!mounted) return;
     bool uploading = false;
     bool uploaded = false;
+    String? receiptUrl;
 
     await showDialog(
       context: context,
@@ -412,12 +416,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     }
                                     setDialogState(() => uploading = true);
                                     try {
-                                      await ApiService.uploadQrReceipt(
+                                      final response = await ApiService.uploadQrReceipt(
                                         paymentId: paymentId,
                                         receipt: receipt,
                                         receiptBytes: receiptBytes,
                                         receiptName: receiptName,
                                       );
+                                      final uploadedUrl =
+                                          (response['receipt_upload'] ?? response['receipt_url'] ?? '')
+                                              .toString();
+                                      if (uploadedUrl.isNotEmpty) {
+                                        receiptUrl = uploadedUrl;
+                                      }
                                       setDialogState(() {
                                         uploading = false;
                                         uploaded = true;
@@ -458,6 +468,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
       },
     );
+    return receiptUrl;
   }
 
   @override

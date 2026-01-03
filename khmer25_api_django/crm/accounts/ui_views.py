@@ -6,8 +6,8 @@ import io
 import re
 
 from django.core.paginator import Paginator
-from django.db.models import Count, Sum
-from django.db.models import Q
+from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
+from django.db.models.functions import Coalesce, TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -141,11 +141,120 @@ def dashboard_view(request):
     total_sales = (
         Order.objects.aggregate(total=Sum("total_amount")).get("total") or 0
     )
+    morning_orders_qs = Order.objects.filter(created_at__hour__range=(0, 11))
+    afternoon_orders_qs = Order.objects.filter(created_at__hour__range=(12, 17))
+    evening_orders_qs = Order.objects.filter(created_at__hour__range=(18, 23))
+
+    morning_orders = morning_orders_qs.count()
+    afternoon_orders = afternoon_orders_qs.count()
+    evening_orders = evening_orders_qs.count()
+
+    morning_amount = (
+        morning_orders_qs.aggregate(total=Sum("total_amount")).get("total") or 0
+    )
+    afternoon_amount = (
+        afternoon_orders_qs.aggregate(total=Sum("total_amount")).get("total") or 0
+    )
+    evening_amount = (
+        evening_orders_qs.aggregate(total=Sum("total_amount")).get("total") or 0
+    )
+    today = timezone.localdate()
+    sales_start_date = today - timedelta(days=29)
+    status_start_date = today - timedelta(days=6)
+
+    sales_by_day = (
+        Order.objects.filter(created_at__date__gte=sales_start_date, created_at__date__lte=today)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(total=Sum("total_amount"))
+        .order_by("day")
+    )
+    sales_by_day_map = {item["day"]: float(item["total"] or 0) for item in sales_by_day}
+    sales_trend_labels = []
+    sales_trend_values = []
+    for offset in range(30):
+        day = sales_start_date + timedelta(days=offset)
+        sales_trend_labels.append(day.strftime("%b %d"))
+        sales_trend_values.append(sales_by_day_map.get(day, 0))
+
+    status_order = ["pending", "confirmed", "shipping", "completed", "cancelled"]
+    status_label_map = {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "shipping": "Shipping",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+    }
+    status_counts = (
+        Order.objects.filter(created_at__date__gte=status_start_date, created_at__date__lte=today)
+        .values("order_status")
+        .annotate(count=Count("id"))
+    )
+    status_count_map = {item["order_status"]: item["count"] for item in status_counts}
+    status_labels = [status_label_map[status] for status in status_order]
+    status_values = [status_count_map.get(status, 0) for status in status_order]
+
+    top_products_qs = (
+        OrderItem.objects.all()
+        .values("product__name")
+        .annotate(
+            total_qty=Coalesce(Sum("quantity"), Value(0)),
+            morning_qty=Coalesce(
+                Sum(
+                    Case(
+                        When(order__created_at__hour__range=(0, 11), then=F("quantity")),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ),
+                Value(0),
+            ),
+            afternoon_qty=Coalesce(
+                Sum(
+                    Case(
+                        When(order__created_at__hour__range=(12, 17), then=F("quantity")),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ),
+                Value(0),
+            ),
+            evening_qty=Coalesce(
+                Sum(
+                    Case(
+                        When(order__created_at__hour__range=(18, 23), then=F("quantity")),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ),
+                Value(0),
+            ),
+        )
+        .order_by("-total_qty")[:5]
+    )
+    top_product_labels = [item["product__name"] or "Unknown" for item in top_products_qs]
+    top_product_morning = [int(item["morning_qty"] or 0) for item in top_products_qs]
+    top_product_afternoon = [int(item["afternoon_qty"] or 0) for item in top_products_qs]
+    top_product_evening = [int(item["evening_qty"] or 0) for item in top_products_qs]
     context = {
         "total_sales": f"{total_sales:,.2f}",
         "total_orders": Order.objects.count(),
         "total_customers": User.objects.count(),
         "total_products": Product.objects.count(),
+        "morning_orders": morning_orders,
+        "afternoon_orders": afternoon_orders,
+        "evening_orders": evening_orders,
+        "morning_amount": f"{morning_amount:,.2f}",
+        "afternoon_amount": f"{afternoon_amount:,.2f}",
+        "evening_amount": f"{evening_amount:,.2f}",
+        "sales_trend_labels": sales_trend_labels,
+        "sales_trend_values": sales_trend_values,
+        "status_labels": status_labels,
+        "status_values": status_values,
+        "top_product_labels": top_product_labels,
+        "top_product_morning": top_product_morning,
+        "top_product_afternoon": top_product_afternoon,
+        "top_product_evening": top_product_evening,
         "recent_orders": Order.objects.select_related("user")
         .order_by("-created_at")[:5],
     }
@@ -426,6 +535,20 @@ def sales_report_view(request):
 
     orders_qs = list(orders_qs.order_by("-created_at"))
 
+    slot_counts = {"morning": 0, "afternoon": 0, "evening": 0}
+    slot_amounts = {"morning": 0, "afternoon": 0, "evening": 0}
+    for order in orders_qs:
+        local_dt = timezone.localtime(order.created_at)
+        hour = local_dt.hour
+        if 6 <= hour < 12:
+            slot_key = "morning"
+        elif 12 <= hour < 18:
+            slot_key = "afternoon"
+        else:
+            slot_key = "evening"
+        slot_counts[slot_key] += 1
+        slot_amounts[slot_key] += float(order.total_amount or 0)
+
     if time_slot != "all":
         def _match_slot(dt):
             local_dt = timezone.localtime(dt)
@@ -439,6 +562,14 @@ def sales_report_view(request):
             return True
 
         orders_qs = [order for order in orders_qs if _match_slot(order.created_at)]
+
+    selected_slot_amount = sum(slot_amounts.values())
+    selected_slot_count = sum(slot_counts.values())
+    selected_slot_label = "All"
+    if time_slot in slot_amounts:
+        selected_slot_amount = slot_amounts[time_slot]
+        selected_slot_count = slot_counts[time_slot]
+        selected_slot_label = time_slot.title()
 
     orders = []
     for order in orders_qs:
@@ -505,6 +636,11 @@ def sales_report_view(request):
         "end_date": end.strftime("%Y-%m-%d"),
         "query": query,
         "time_slot": time_slot,
+        "slot_counts": slot_counts,
+        "slot_amounts": slot_amounts,
+        "selected_slot_amount": selected_slot_amount,
+        "selected_slot_count": selected_slot_count,
+        "selected_slot_label": selected_slot_label,
         "todays_count": todays_count,
         "total_orders": total_orders,
         "total_revenue": total_revenue,
