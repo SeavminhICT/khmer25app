@@ -90,6 +90,7 @@ flutter:
     - assets/images/farmer.png
     - assets/images/order.png
     - assets/images/delivery.png
+    - assets/images/image.png
 
     # Banner carousel (3 images)
     - assets/images/banners/banner1.png

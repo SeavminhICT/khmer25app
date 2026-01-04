@@ -14,6 +14,8 @@ class OrderReceiptScreen extends StatelessWidget {
     final paymentStatus = (order['payment_status'] ?? 'pending').toString();
     final paymentMethod = (order['payment_method'] ?? '').toString();
     final receiptUrl = _receiptUrl(order);
+    final showAbaLogo =
+        paymentMethod == 'ABA_QR' || paymentMethod == 'ABA_PAYWAY';
     final customerName = (order['customer_name'] ?? 'Guest').toString();
     final phone = (order['phone'] ?? 'N/A').toString();
     final address = (order['address'] ?? '').toString();
@@ -72,10 +74,54 @@ class OrderReceiptScreen extends StatelessWidget {
           _summaryRow('Tax', tax),
           const Divider(height: 24),
           _summaryRow('Grand Total', total, bold: true),
+          if (showAbaLogo) ...[
+            const SizedBox(height: 16),
+            _sectionTitle('Payment'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/images/image.png',
+                    height: 36,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'ABA KHQR',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          'Payment by QR',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '-\$${total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (receiptUrl.isNotEmpty) ...[
             const SizedBox(height: 14),
             _sectionTitle('📎 Payment Receipt'),
-            _receiptPreview(receiptUrl),
+            _receiptPreview(context, receiptUrl, fit: BoxFit.contain),
           ],
           if (note.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -104,10 +150,7 @@ class OrderReceiptScreen extends StatelessWidget {
         children: [
           SizedBox(
             width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.black54),
-            ),
+            child: Text(label, style: const TextStyle(color: Colors.black54)),
           ),
           Expanded(
             child: Text(
@@ -168,23 +211,57 @@ class OrderReceiptScreen extends StatelessWidget {
     return '';
   }
 
-  Widget _receiptPreview(String url) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        height: 220,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return Container(
-            height: 220,
-            color: Colors.grey.shade200,
-            alignment: Alignment.center,
-            child: const Text('Unable to load receipt'),
-          );
-        },
+  Widget _receiptPreview(
+    BuildContext context,
+    String url, {
+    BoxFit fit = BoxFit.cover,
+  }) {
+    return GestureDetector(
+      onTap: () => _showReceiptFullscreen(context, url),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          url,
+          height: 220,
+          width: double.infinity,
+          fit: fit,
+          errorBuilder: (_, __, ___) {
+            return Container(
+              height: 220,
+              color: Colors.grey.shade200,
+              alignment: Alignment.center,
+              child: const Text('Unable to load receipt'),
+            );
+          },
+        ),
       ),
+    );
+  }
+
+  void _showReceiptFullscreen(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          backgroundColor: Colors.black,
+          child: InteractiveViewer(
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Container(
+                height: 280,
+                alignment: Alignment.center,
+                color: Colors.black,
+                child: const Text(
+                  'Unable to load receipt',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -330,16 +407,17 @@ class OrderReceiptScreen extends StatelessWidget {
 
   String _formatDate(dynamic raw) {
     if (raw == null) {
-      return DateFormat('yyyy-MM-dd HH:mm')
-          .format(_toCambodiaTime(DateTime.now()));
+      return DateFormat(
+        'yyyy-MM-dd HH:mm',
+      ).format(_toCambodiaTime(DateTime.now()));
     }
     try {
       final dt = DateTime.parse(raw.toString());
-      return DateFormat('yyyy-MM-dd HH:mm')
-          .format(_toCambodiaTime(dt));
+      return DateFormat('yyyy-MM-dd HH:mm').format(_toCambodiaTime(dt));
     } catch (_) {
-      return DateFormat('yyyy-MM-dd HH:mm')
-          .format(_toCambodiaTime(DateTime.now()));
+      return DateFormat(
+        'yyyy-MM-dd HH:mm',
+      ).format(_toCambodiaTime(DateTime.now()));
     }
   }
 

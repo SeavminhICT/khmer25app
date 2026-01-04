@@ -253,7 +253,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required String customerName,
     required double amount,
   }) async {
-    if (!mounted) return;
+    if (!mounted) return null;
     bool uploading = false;
     bool uploaded = false;
     String? receiptUrl;
