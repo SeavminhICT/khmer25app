@@ -282,11 +282,7 @@ class _HomePageState extends State<HomePage> {
 
       body: drawerPages[_drawerIndex],
 
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.chat, color: Colors.white),
-        onPressed: () {},
-      ),
+      
 
       bottomNavigationBar: BottomNavigationBar(
         items: [
