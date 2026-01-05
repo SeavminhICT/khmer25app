@@ -95,6 +95,7 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True").lower() == 
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.getenv("MEDIA_ROOT", str(BASE_DIR / "media"))
+SERVE_MEDIA = os.getenv("SERVE_MEDIA", "False").lower() == "true"
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
