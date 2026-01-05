@@ -1,1 +1,1 @@
--r khmer25_api_django/crm/requirements.txt
+-r khmer25_api_django/crm/crm/requirements.txt
