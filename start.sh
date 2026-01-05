@@ -14,4 +14,5 @@ if [ "${SEED_DATA}" = "true" ]; then
   python manage.py seed_data --reset
 fi
 : "${GUNICORN_TIMEOUT:=120}"
+: "${PORT:=8000}"
 gunicorn crm.wsgi:application --bind 0.0.0.0:${PORT} --timeout "${GUNICORN_TIMEOUT}"
