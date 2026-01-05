@@ -29,11 +29,12 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "*").split(",")
-    if host.strip()
-]
+
+def _split_env_list(name, default=""):
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
+
+ALLOWED_HOSTS = _split_env_list("ALLOWED_HOSTS", "*")
 
 
 # Application definition
@@ -172,18 +173,27 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = os.getenv(
+    "STATICFILES_STORAGE",
+    "whitenoise.storage.CompressedStaticFilesStorage",
+)
+WHITENOISE_USE_FINDERS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:64129",
     "http://localhost:65008",
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
-    if origin.strip()
-]
+CSRF_TRUSTED_ORIGINS = _split_env_list("CSRF_TRUSTED_ORIGINS")
+
+_railway_public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+if _railway_public_domain:
+    CSRF_TRUSTED_ORIGINS.extend(
+        [
+            f"https://{_railway_public_domain}",
+            f"http://{_railway_public_domain}",
+        ]
+    )
 
 # --- Payment / Telegram integrations ---
 PAYWAY_MERCHANT_ID = os.getenv("PAYWAY_MERCHANT_ID", "")
