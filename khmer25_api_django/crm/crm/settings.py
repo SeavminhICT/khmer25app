@@ -21,12 +21,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k^4i4!o0!4l8)lu6nzu8+w2*$@8oa-p8wn1!g!m@e%=f7^xu#0'
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-k^4i4!o0!4l8)lu6nzu8+w2*$@8oa-p8wn1!g!m@e%=f7^xu#0",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = ["*", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "*").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -74,6 +81,7 @@ JAZZMIN_SETTINGS = {
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -82,7 +90,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True").lower() == "true"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -162,11 +170,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:64129",
     "http://localhost:65008",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
 
 # --- Payment / Telegram integrations ---
