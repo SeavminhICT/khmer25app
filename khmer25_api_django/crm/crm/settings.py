@@ -94,7 +94,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True").lower() == "true"
 
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
-MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/media")
+MEDIA_ROOT = os.getenv("MEDIA_ROOT", str(BASE_DIR / "media"))
 SERVE_MEDIA = os.getenv("SERVE_MEDIA", "False").lower() == "true"
 
 # Ensure media directory exists when using a mounted volume.
