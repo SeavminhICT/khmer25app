@@ -3,9 +3,10 @@ set -e
 
 cd khmer25_api_django/crm
 mkdir -p staticfiles
-mkdir -p "${MEDIA_ROOT:-media}"
-if [ -d "media" ] && [ -z "$(ls -A "${MEDIA_ROOT:-media}" 2>/dev/null)" ]; then
-  cp -R media/* "${MEDIA_ROOT:-media}/" || true
+: "${MEDIA_ROOT:=/data/media}"
+mkdir -p "${MEDIA_ROOT}"
+if [ -d "media" ] && [ -z "$(ls -A "${MEDIA_ROOT}" 2>/dev/null)" ]; then
+  cp -R media/* "${MEDIA_ROOT}/" || true
 fi
 python manage.py collectstatic --noinput
 : "${GUNICORN_TIMEOUT:=120}"
