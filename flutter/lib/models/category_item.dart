@@ -58,6 +58,7 @@ class CategoryItem {
   /// Tries multiple API fields to find an image value.
   static String _extractImage(Map<String, dynamic> json) {
     final candidates = [
+      json['image_url'],
       json['image'],
       json['img'],
       json['images'],
