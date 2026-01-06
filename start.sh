@@ -3,7 +3,7 @@ set -e
 
 cd khmer25_api_django/crm
 mkdir -p staticfiles
-: "${MEDIA_ROOT:=/media}"
+: "${MEDIA_ROOT:=../media}"
 mkdir -p "${MEDIA_ROOT}"
 if [ -d "media" ] && [ -z "$(ls -A "${MEDIA_ROOT}" 2>/dev/null)" ]; then
   cp -R media/* "${MEDIA_ROOT}/" || true
