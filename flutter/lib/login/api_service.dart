@@ -12,15 +12,11 @@ class ApiService {
   static String get baseUrl {
     const env = String.fromEnvironment('API_BASE_URL');
     if (env.isNotEmpty) return env;
-    const prod = "https://khmer25app-production-5221.up.railway.app";
-    if (kReleaseMode) return prod;
-    const devWeb = "http://127.0.0.1:8000";
-    const devAndroid = "http://10.0.2.2:8000";
-    const devIOS = "http://127.0.0.1:8000";
-    if (kIsWeb) return devWeb;
-    if (Platform.isAndroid) return devAndroid;
-    if (Platform.isIOS) return devIOS;
-    return devWeb;
+    const prod = "https://khmer25app-production-fd80.up.railway.app";
+    if (kIsWeb) return prod;
+    if (Platform.isAndroid) return prod;
+    if (Platform.isIOS) return prod;
+    return prod;
   }
   static const Map<String, String> _jsonHeaders = {
     "Content-Type": "application/json",
