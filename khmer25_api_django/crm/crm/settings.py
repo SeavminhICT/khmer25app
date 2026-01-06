@@ -144,8 +144,16 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+_use_sqlite = os.getenv("USE_SQLITE", "").lower() in {"1", "true", "yes"}
 _database_url = os.getenv("DATABASE_URL", "").strip()
-if _database_url:
+if _use_sqlite:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
+    }
+elif _database_url:
     DATABASES = {
         "default": dj_database_url.parse(
             _database_url,
