@@ -23,13 +23,31 @@
       <h5 class="mb-3">Banner Image</h5>
       <div class="gallery-grid mb-3">
         {% if banner and banner.image %}
-          <img src="{{ banner.image.url }}" alt="Banner">
+          <img id="bannerPreviewImage" src="{{ banner.image.url }}" alt="Banner">
         {% else %}
-          <img src="{% static 'accounts/img/placeholder.svg' %}" alt="Banner">
+          <img id="bannerPreviewImage" src="{% static 'accounts/img/placeholder.svg' %}" alt="Banner">
         {% endif %}
       </div>
-      <input class="form-control" type="file" name="image" {% if not banner %}required{% endif %}>
+      <input class="form-control" type="file" name="image" id="bannerImageInput" accept="image/*" {% if not banner %}required{% endif %}>
     </div>
   </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const bannerInput = document.getElementById("bannerImageInput");
+  const bannerPreview = document.getElementById("bannerPreviewImage");
+  if (bannerInput && bannerPreview) {
+    bannerInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        bannerPreview.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+</script>
 {% endblock %}

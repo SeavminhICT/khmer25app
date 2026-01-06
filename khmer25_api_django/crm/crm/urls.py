@@ -14,10 +14,12 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import mimetypes
 import os
 
 from django.contrib import admin
-from django.http import HttpResponse, HttpResponseForbidden
+from django.contrib.staticfiles import finders
+from django.http import FileResponse, HttpResponse, HttpResponseForbidden, Http404
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
@@ -50,6 +52,18 @@ def media_debug(request):
         lines.append(f"list_error={exc!r}")
     return HttpResponse("\n".join(lines))
 
+def media_fallback(request, path):
+    full_path = os.path.join(settings.MEDIA_ROOT, path)
+    if os.path.exists(full_path):
+        content_type, _ = mimetypes.guess_type(full_path)
+        return FileResponse(open(full_path, "rb"), content_type=content_type)
+    content_type, _ = mimetypes.guess_type(path)
+    if content_type and content_type.startswith("image/"):
+        placeholder = finders.find("accounts/img/placeholder.svg")
+        if placeholder:
+            return FileResponse(open(placeholder, "rb"), content_type="image/svg+xml")
+    raise Http404("Media file not found.")
+
 urlpatterns = [
     # Simple health check for platform probes (e.g., Railway).
     path("", lambda request: HttpResponse("ok"), name="health"),
@@ -60,4 +74,5 @@ urlpatterns = [
 ]
 
 if settings.DEBUG or settings.SERVE_MEDIA:
+    urlpatterns += [path("media/<path:path>", media_fallback, name="media_fallback")]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

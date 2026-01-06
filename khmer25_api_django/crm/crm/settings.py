@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 import dj_database_url
 
@@ -97,7 +98,11 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True").lower() == 
 
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 MEDIA_ROOT = os.getenv("MEDIA_ROOT", str(BASE_DIR / "media"))
-SERVE_MEDIA = os.getenv("SERVE_MEDIA", "False").lower() == "true"
+# Default to serving media unless explicitly disabled.
+SERVE_MEDIA = os.getenv("SERVE_MEDIA", "True").lower() == "true"
+if not SERVE_MEDIA and "runserver" in sys.argv:
+    # Serve media in local dev even when DEBUG is false.
+    SERVE_MEDIA = True
 
 # Ensure media directory exists when using a mounted volume.
 try:
@@ -149,10 +154,15 @@ if _database_url:
         )
     }
 else:
+    # Default to local PostgreSQL when DATABASE_URL is not provided.
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "db_khmer25"),
+            "USER": os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("DB_PASSWORD", "123456"),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
         }
     }
 

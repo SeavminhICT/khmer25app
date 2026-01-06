@@ -4,6 +4,7 @@ from functools import wraps
 import csv
 import io
 import re
+from decimal import Decimal, InvalidOperation
 
 from django.core.paginator import Paginator
 from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
@@ -66,6 +67,25 @@ TELEGRAM_MESSAGES = [
         "Items: 2x Banana Chips"
     ),
 ]
+
+def _parse_decimal_input(value):
+    raw = (value or "").strip().replace(",", "")
+    if not raw:
+        return None
+    try:
+        return Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _parse_int_input(value):
+    raw = (value or "").strip().replace(",", "")
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_telegram_message(message):
@@ -292,25 +312,73 @@ def products_form_view(request):
     categories = Category.objects.all().order_by("title_en")
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        category_id = request.POST.get("category")
-        price = request.POST.get("price") or "0"
+        category_id = (request.POST.get("category") or "").strip()
+        price = _parse_decimal_input(request.POST.get("price"))
         currency = request.POST.get("currency") or "USD"
-        quantity = request.POST.get("quantity") or "0"
+        quantity = _parse_int_input(request.POST.get("quantity"))
         tag = request.POST.get("tag", "").strip()
-        payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
+        payway_link = request.POST.get("payway_link", "").strip() or None
         image = request.FILES.get("image")
         if name and category_id:
-            product = Product.objects.create(
-                name=name,
-                category_id=category_id,
-                price=price,
-                currency=currency,
-                quantity=quantity,
-                tag=tag,
-                payway_link=payway_link,
-                image=image,
-            )
-            return redirect(f"{reverse('admin-products-detail', kwargs={'product_id': product.id})}?status=created")
+            if len(name) > 200:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "Product name is too long (max 200 characters)."},
+                )
+            if payway_link and len(payway_link) > 200:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "PayWay link is too long (max 200 characters)."},
+                )
+            if tag and len(tag) > 20:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "Tag is too long (max 20 characters)."},
+                )
+            category_pk = _parse_int_input(category_id)
+            if category_pk is None or not Category.objects.filter(pk=category_pk).exists():
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "Please select a valid category."},
+                )
+            if price is None:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "Price must be a number."},
+                )
+            if quantity is None:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "error": "Stock must be a whole number."},
+                )
+            try:
+                product = Product.objects.create(
+                    name=name,
+                    category_id=category_pk,
+                    price=price,
+                    currency=currency,
+                    quantity=quantity,
+                    tag=tag,
+                    payway_link=payway_link,
+                    image=image,
+                )
+            except Exception as exc:
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {
+                        "categories": categories,
+                        "error": f"Failed to save product: {exc}",
+                        "form_values": request.POST,
+                    },
+                )
+            return redirect(f"{reverse('admin-products-list')}?status=created")
     return render(
         request,
         "pages/products/form.html",
@@ -324,17 +392,70 @@ def products_edit_view(request, product_id):
     categories = Category.objects.all().order_by("title_en")
     if request.method == "POST":
         product.name = request.POST.get("name", "").strip()
-        product.category_id = request.POST.get("category") or product.category_id
-        product.price = request.POST.get("price") or product.price
+        category_id = (request.POST.get("category") or "").strip()
+        price = _parse_decimal_input(request.POST.get("price"))
+        quantity = _parse_int_input(request.POST.get("quantity"))
+        if len(product.name) > 200:
+            return render(
+                request,
+                "pages/products/form.html",
+                {"categories": categories, "product": product, "is_edit": True, "error": "Product name is too long (max 200 characters)."},
+            )
+        if category_id:
+            category_pk = _parse_int_input(category_id)
+            if category_pk is None or not Category.objects.filter(pk=category_pk).exists():
+                return render(
+                    request,
+                    "pages/products/form.html",
+                    {"categories": categories, "product": product, "is_edit": True, "error": "Please select a valid category."},
+                )
+            product.category_id = category_pk
+        if price is None:
+            return render(
+                request,
+                "pages/products/form.html",
+                {"categories": categories, "product": product, "is_edit": True, "error": "Price must be a number."},
+            )
+        product.price = price
         product.currency = request.POST.get("currency") or product.currency
-        product.quantity = request.POST.get("quantity") or product.quantity
+        if quantity is None:
+            return render(
+                request,
+                "pages/products/form.html",
+                {"categories": categories, "product": product, "is_edit": True, "error": "Stock must be a whole number."},
+            )
+        product.quantity = quantity
         product.tag = request.POST.get("tag", "").strip()
-        product.payway_link = request.POST.get("payway_link", "").strip() or PAYWAY_SAMPLE_LINK
+        if product.tag and len(product.tag) > 20:
+            return render(
+                request,
+                "pages/products/form.html",
+                {"categories": categories, "product": product, "is_edit": True, "error": "Tag is too long (max 20 characters)."},
+            )
+        product.payway_link = request.POST.get("payway_link", "").strip() or None
+        if product.payway_link and len(product.payway_link) > 200:
+            return render(
+                request,
+                "pages/products/form.html",
+                {"categories": categories, "product": product, "is_edit": True, "error": "PayWay link is too long (max 200 characters)."},
+            )
         image = request.FILES.get("image")
         if image:
             product.image = image
-        product.save()
-        return redirect(f"{reverse('admin-products-detail', kwargs={'product_id': product.id})}?status=updated")
+        try:
+            product.save()
+        except Exception as exc:
+            return render(
+                request,
+                "pages/products/form.html",
+                {
+                    "categories": categories,
+                    "product": product,
+                    "is_edit": True,
+                    "error": f"Failed to save product: {exc}",
+                },
+            )
+        return redirect(f"{reverse('admin-products-list')}?status=updated")
     return render(
         request,
         "pages/products/form.html",

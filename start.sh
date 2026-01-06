@@ -5,6 +5,8 @@ cd khmer25_api_django/crm
 mkdir -p staticfiles
 : "${MEDIA_ROOT:=media}"
 export MEDIA_ROOT
+: "${SERVE_MEDIA:=true}"
+export SERVE_MEDIA
 mkdir -p "${MEDIA_ROOT}"
 if [ -d "media" ] && [ -z "$(ls -A "${MEDIA_ROOT}" 2>/dev/null)" ]; then
   cp -R media/* "${MEDIA_ROOT}/" || true
