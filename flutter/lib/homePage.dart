@@ -356,41 +356,76 @@ class HomeBody extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final bool isTablet = screenWidth > 600;
     final bool isDesktop = screenWidth > 1024;
+    final EdgeInsets horizontalPadding =
+        EdgeInsets.symmetric(horizontal: isTablet ? 20 : 14);
+    final double sectionGap = isTablet ? 18 : 12;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          BannerCarousel(height: screenWidth * 0.40),
-
-          SizedBox(height: isTablet ? 24 : 16),
-          SectionTitle(title: LangStore.t('sectiontitle.type')),
-          CategoryGrid(isTablet: isTablet),
-
-          SizedBox(height: isTablet ? 24 : 16),
-          SectionTitle(
-            title: LangStore.t('sectiontitle.products'),
-            trailing: LangStore.t('sectiontitle.viewall'),
-          ),
-          ProductHorizontalList(
-            section: 'hot',
-            itemWidth: isDesktop ? 280 : (isTablet ? 200 : 150),
-          ),
-
-          SizedBox(height: isTablet ? 24 : 16),
-          SectionTitle(
-            title: LangStore.t('sectiontitle.discount'),
-            trailing: LangStore.t('sectiontitle.viewall'),
-          ),
-          ProductHorizontalList(
-            section: 'discount',
-            itemWidth: isDesktop ? 280 : (isTablet ? 200 : 150),
-          ),
-
-          SizedBox(height: isTablet ? 24 : 16),
-          SpecialOfferCard(),
-          const SizedBox(height: 80),
-        ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF6F8F5), Color(0xFFFFFBF3)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: isTablet ? 16 : 10),
+            Padding(
+              padding: horizontalPadding,
+              child: BannerCarousel(height: screenWidth * 0.38),
+            ),
+            SizedBox(height: sectionGap),
+            Padding(
+              padding: horizontalPadding,
+              child: SectionTitle(title: LangStore.t('sectiontitle.type')),
+            ),
+            SectionShell(
+              margin: horizontalPadding,
+              child: CategoryGrid(isTablet: isTablet),
+            ),
+            SizedBox(height: sectionGap),
+            Padding(
+              padding: horizontalPadding,
+              child: SectionTitle(
+                title: LangStore.t('sectiontitle.products'),
+                trailing: LangStore.t('sectiontitle.viewall'),
+              ),
+            ),
+            SizedBox(height: isTablet ? 8 : 6),
+            SectionShell(
+              margin: horizontalPadding,
+              child: ProductHorizontalList(
+                section: 'hot',
+                itemWidth: isDesktop ? 280 : (isTablet ? 200 : 150),
+              ),
+            ),
+            SizedBox(height: sectionGap),
+            Padding(
+              padding: horizontalPadding,
+              child: SectionTitle(
+                title: LangStore.t('sectiontitle.discount'),
+                trailing: LangStore.t('sectiontitle.viewall'),
+              ),
+            ),
+            SizedBox(height: isTablet ? 8 : 6),
+            SectionShell(
+              margin: horizontalPadding,
+              child: ProductHorizontalList(
+                section: 'discount',
+                itemWidth: isDesktop ? 280 : (isTablet ? 200 : 150),
+              ),
+            ),
+            SizedBox(height: sectionGap),
+            Padding(
+              padding: horizontalPadding,
+              child: const SpecialOfferCard(),
+            ),
+            const SizedBox(height: 60),
+          ],
+        ),
       ),
     );
   }
@@ -425,7 +460,7 @@ class BannerCarousel extends StatelessWidget {
           items: paths
               .map(
                 (path) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   child: _bannerImage(path),
                 ),
               )
@@ -479,22 +514,61 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2A24),
           ),
-          if (trailing != null)
-            Text(
-              trailing!,
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        if (trailing != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6F3ED),
+              borderRadius: BorderRadius.circular(20),
             ),
+            child: Text(
+              trailing!,
+              style: const TextStyle(
+                color: Color(0xFF0E7A5F),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class SectionShell extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+
+  const SectionShell({super.key, required this.child, required this.margin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
+      child: child,
     );
   }
 }
@@ -535,12 +609,12 @@ class _CategoryGridState extends State<CategoryGrid> {
         return GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
-          padding: EdgeInsets.all(widget.isTablet ? 24 : 16),
+          padding: EdgeInsets.all(widget.isTablet ? 12 : 8),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.85,
-            mainAxisSpacing: widget.isTablet ? 16 : 12,
-            crossAxisSpacing: widget.isTablet ? 16 : 12,
+            childAspectRatio: 0.95,
+            mainAxisSpacing: widget.isTablet ? 12 : 8,
+            crossAxisSpacing: widget.isTablet ? 12 : 8,
           ),
           itemCount: hasData ? cats!.length : _fallbackCats.length,
           itemBuilder: (_, i) {
@@ -548,23 +622,36 @@ class _CategoryGridState extends State<CategoryGrid> {
               final cat = cats![i];
               final name = cat.titleEn.isNotEmpty ? cat.titleEn : cat.titleKh;
               return InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () => _openCategory(context, name),
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: _categoryImage(cat.resolvedImage),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FAF7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E9E4)),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _categoryImage(cat.resolvedImage),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2E3B34),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               );
             } else {
@@ -573,26 +660,39 @@ class _CategoryGridState extends State<CategoryGrid> {
               return InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => _openCategory(context, name),
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        cat['icon']!,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FAF7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E9E4)),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          cat['icon']!,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2E3B34),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
@@ -607,9 +707,13 @@ class _CategoryGridState extends State<CategoryGrid> {
       return Container(
         width: 56,
         height: 56,
-        color: Colors.grey.shade200,
+        color: const Color(0xFFEFF3F1),
         alignment: Alignment.center,
-        child: const Icon(Icons.image_not_supported, size: 22, color: Colors.grey),
+        child: const Icon(
+          Icons.image_not_supported,
+          size: 22,
+          color: Colors.grey,
+        ),
       );
     }
     if (path.startsWith('http')) {
@@ -621,9 +725,13 @@ class _CategoryGridState extends State<CategoryGrid> {
         errorBuilder: (_, __, ___) => Container(
           width: 56,
           height: 56,
-          color: Colors.grey.shade200,
+          color: const Color(0xFFEFF3F1),
           alignment: Alignment.center,
-          child: const Icon(Icons.image_not_supported, size: 22, color: Colors.grey),
+          child: const Icon(
+            Icons.image_not_supported,
+            size: 22,
+            color: Colors.grey,
+          ),
         ),
       );
     }
@@ -698,7 +806,7 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return SizedBox(
-      height: isTablet ? 280 : 230,
+      height: isTablet ? 260 : 210,
       child: FutureBuilder<List<ProductModel>>(
         future: _futureProducts,
         builder: (context, snapshot) {
@@ -720,7 +828,7 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
       scrollDirection: Axis.horizontal,
       primary: false,
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 6 : 2),
       itemCount: products.length,
       itemBuilder: (_, i) {
         final p = products[i];
@@ -739,15 +847,16 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
           },
           child: Container(
             width: widget.itemWidth,
-            margin: EdgeInsets.only(right: isTablet ? 16 : 12),
+            margin: EdgeInsets.only(right: isTablet ? 12 : 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFFAFBFA),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5EAE6)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -756,7 +865,7 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
+                    top: Radius.circular(16),
                   ),
                   child: _productImage(
                     p.imageUrl,
@@ -764,7 +873,7 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -772,15 +881,29 @@ class _ProductHorizontalListState extends State<ProductHorizontalList> {
                         p.title,
                         style: const TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2A24),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        priceText,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDFF3EA),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          priceText,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0E7A5F),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -850,33 +973,44 @@ class SpecialOfferCard extends StatelessWidget {
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 16),
       padding: EdgeInsets.all(isTablet ? 30 : 20),
       decoration: BoxDecoration(
-        color: Colors.green.shade700,
-        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0E7A5F), Color(0xFF2C9E6C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
 
-      // ⭐ Center the entire content in the middle
       child: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,                 // ⭐ keeps content tight & centered
-          crossAxisAlignment: CrossAxisAlignment.center,  // ⭐ horizontal center
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(LangStore.t('special.title'),
-              style: TextStyle(
+            Text(
+              LangStore.t('special.title'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,               // ⭐ center text
+              textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 8),
 
-            Text(LangStore.t('special.desc'),
-              style: TextStyle(color: Colors.white70, fontSize: 14),
-              textAlign: TextAlign.center,               // ⭐ center text
+            Text(
+              LangStore.t('special.desc'),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 16),
@@ -884,11 +1018,21 @@ class SpecialOfferCard extends StatelessWidget {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
               onPressed: () {},
               child: Text(
                 LangStore.t('special.cta'),
-                style: const TextStyle(color: Colors.green),
+                style: const TextStyle(
+                  color: Color(0xFF0E7A5F),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
