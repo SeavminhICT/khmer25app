@@ -43,7 +43,7 @@ class GridCategoryCard extends StatelessWidget {
                 top: Radius.circular(20),
               ),
               child: SizedBox(
-                height: 125,
+                height: 110,
                 width: double.infinity,
                 child: _CategoryImage(imagePath: category.resolvedImage),
               ),
@@ -51,7 +51,7 @@ class GridCategoryCard extends StatelessWidget {
 
             // ---------------- TEXT AREA (tighter)
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -60,24 +60,24 @@ class GridCategoryCard extends StatelessWidget {
                     category.titleEn,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: 13,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
 
                   // Subcategories text
                   Text(
                     '${category.subCount} subcategories',
                     style: TextStyle(
                       color: Colors.grey.shade600,
-                      fontSize: 10,
+                      fontSize: 9,
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // Bottom row: Explore + Heart icon
                   Row(
@@ -89,13 +89,13 @@ class GridCategoryCard extends StatelessWidget {
                             "Explore",
                             style: TextStyle(
                               color: Colors.green,
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           SizedBox(width: 4),
                           Icon(Icons.arrow_forward,
-                              size: 17, color: Colors.green),
+                              size: 16, color: Colors.green),
                         ],
                       ),
                       Row(
@@ -108,7 +108,7 @@ class GridCategoryCard extends StatelessWidget {
                                   ? Icons.favorite
                                   : Icons.favorite_border,
                               color: isFavorite ? Colors.red : Colors.grey,
-                              size: 20,
+                              size: 18,
                             ),
                             onPressed: onFavoriteTap,
                           ),
@@ -117,7 +117,7 @@ class GridCategoryCard extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             icon: const Icon(Icons.add_shopping_cart,
-                                size: 20, color: Colors.green),
+                                size: 18, color: Colors.green),
                             onPressed: onAddToCart,
                           ),
                         ],
