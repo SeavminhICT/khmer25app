@@ -349,45 +349,56 @@ class _HeaderSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.local_shipping_outlined,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        LangStore.t('cart.shipping'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: OutlinedButton.icon(
+                  onPressed: onSelectLocation,
+                  icon: const Icon(Icons.place_outlined, size: 18),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    side: BorderSide(color: Colors.green.shade700),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
-                      Icons.local_shipping_outlined,
-                      color: Colors.green.shade700,
+                  ),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      LangStore.t('cart.selectLocation'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    LangStore.t('cart.shipping'),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              OutlinedButton.icon(
-                onPressed: onSelectLocation,
-                icon: const Icon(Icons.place_outlined, size: 18),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  side: BorderSide(color: Colors.green.shade700),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                label: Text(
-                  LangStore.t('cart.selectLocation'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ],

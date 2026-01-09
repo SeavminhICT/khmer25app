@@ -157,8 +157,8 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.app',
+                          'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'khmer25',
                     ),
                     if (_pin != null)
                       MarkerLayer(
