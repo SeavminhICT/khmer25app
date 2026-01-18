@@ -88,36 +88,42 @@
   <div class="row g-3 mb-3">
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Morning</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Morning</div>
+          <div class="text-muted small fw-semibold">${{ slot_amounts.morning|floatformat:2 }}</div>
+        </div>
         <div class="kpi-value">{{ slot_counts.morning }}</div>
-        <div class="text-muted small">${{ slot_amounts.morning|floatformat:2 }}</div>
         <div class="text-muted small">06:00 - 11:59</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Afternoon</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Afternoon</div>
+          <div class="text-muted small fw-semibold">${{ slot_amounts.afternoon|floatformat:2 }}</div>
+        </div>
         <div class="kpi-value">{{ slot_counts.afternoon }}</div>
-        <div class="text-muted small">${{ slot_amounts.afternoon|floatformat:2 }}</div>
         <div class="text-muted small">12:00 - 17:59</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Evening</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Evening</div>
+          <div class="text-muted small fw-semibold">${{ slot_amounts.evening|floatformat:2 }}</div>
+        </div>
         <div class="kpi-value">{{ slot_counts.evening }}</div>
-        <div class="text-muted small">${{ slot_amounts.evening|floatformat:2 }}</div>
         <div class="text-muted small">18:00 - 23:59</div>
       </div>
     </div>
   </div>
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <!-- <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
     <div>
       <div class="text-muted small">Total amount (selected slot)</div>
       <div class="kpi-value">${{ selected_slot_amount|floatformat:2 }}</div>
     </div>
     <div class="text-muted small">Orders: {{ selected_slot_count }}</div>
-  </div>
+  </div> -->
 </div>
 
 <div class="card p-3">

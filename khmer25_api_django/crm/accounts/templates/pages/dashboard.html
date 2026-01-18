@@ -10,8 +10,19 @@
     <p class="text-muted mb-0">Key metrics and performance at a glance.</p>
   </div>
   <div class="d-flex gap-2">
-    <button class="btn btn-outline-primary">Download report</button>
-    <button class="btn btn-primary">Create campaign</button>
+    <div class="dropdown">
+      <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        Download report
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a class="dropdown-item" href="{% url 'admin-sales-report' %}?preset=today&export=pdf">Sales Report (PDF)</a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{% url 'admin-sales-report' %}?preset=today&export=docx">Sales Report (Word)</a>
+        </li>
+      </ul>
+    </div>
   </div>
 </div>
 
@@ -82,27 +93,36 @@
   <div class="row g-3 mb-3">
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Morning</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Morning</div>
+          <div class="text-muted small fw-semibold">$ {{ morning_amount }}</div>
+        </div>
         <div class="kpi-value">{{ morning_orders }}</div>
         <div class="text-muted small">00:00 - 11:59</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Afternoon</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Afternoon</div>
+          <div class="text-muted small fw-semibold">$ {{ afternoon_amount }}</div>
+        </div>
         <div class="kpi-value">{{ afternoon_orders }}</div>
         <div class="text-muted small">12:00 - 17:59</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="border rounded p-3 h-100">
-        <div class="text-muted">Evening</div>
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="text-muted">Evening</div>
+          <div class="text-muted small fw-semibold">$ {{ evening_amount }}</div>
+        </div>
         <div class="kpi-value">{{ evening_orders }}</div>
         <div class="text-muted small">18:00 - 23:59</div>
       </div>
     </div>
   </div>
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+  <!-- <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
     <div>
       <div class="text-muted small">Total amount (selected slot)</div>
       <div class="kpi-value">$<span id="timeSlotAmount">{{ morning_amount }}</span></div>
@@ -112,7 +132,7 @@
       <button class="btn btn-outline-primary btn-sm time-slot-btn" type="button" data-slot="afternoon" data-amount="{{ afternoon_amount }}">Afternoon</button>
       <button class="btn btn-outline-primary btn-sm time-slot-btn" type="button" data-slot="evening" data-amount="{{ evening_amount }}">Evening</button>
     </div>
-  </div>
+  </div> -->
 </div>
 
 <div class="row g-3 mb-4">

@@ -71,10 +71,6 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       return _pageRoute(const FavoriteScreen(), settings);
     case '/products':
       return _pageRoute(const ProductsSreen(), settings);
-    case '/categories':
-      return _pageRoute(const CategoriesScreen(), settings);
-    case '/promotions':
-      return _pageRoute(const PromotionScreen(), settings);
     case '/account':
       return _pageRoute(const AccountScreen(), settings);
   }

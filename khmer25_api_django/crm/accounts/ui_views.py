@@ -625,15 +625,16 @@ def sales_report_view(request):
     query = request.GET.get("q", "").strip()
     time_slot = request.GET.get("time_slot", "all").strip().lower()
 
-    if preset == "last7":
+    if start_date and end_date:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+        preset = "custom"
+    elif preset == "last7":
         start = local_now.date() - timedelta(days=6)
         end = local_now.date()
     elif preset == "month":
         start = local_now.date().replace(day=1)
         end = local_now.date()
-    elif preset == "custom" and start_date and end_date:
-        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = datetime.strptime(end_date, "%Y-%m-%d").date()
     else:
         start = local_now.date()
         end = local_now.date()
@@ -750,6 +751,13 @@ def sales_report_view(request):
         response["Content-Disposition"] = "attachment; filename=sales_report.csv"
         return response
 
+    export_format = request.GET.get("export")
+    if export_format in {"pdf", "docx"}:
+        filename = _build_sales_report_filename(start, end, export_format)
+        if export_format == "pdf":
+            return _export_sales_report_pdf(orders, start, end, local_now, filename)
+        return _export_sales_report_docx(orders, start, end, local_now, filename)
+
     context = {
         "orders": orders,
         "preset": preset,
@@ -768,6 +776,127 @@ def sales_report_view(request):
         "aov": aov,
     }
     return render(request, "pages/sales/report.html", context)
+
+
+def _build_sales_report_filename(start, end, extension):
+    start_label = start.strftime("%Y%m%d")
+    end_label = end.strftime("%Y%m%d")
+    return f"sales_report_{start_label}_{end_label}.{extension}"
+
+
+def _build_sales_report_rows(orders):
+    rows = []
+    for order in orders:
+        rows.append(
+            [
+                order["order_id"],
+                order["customer_name"],
+                order["customer_phone"],
+                timezone.localtime(order["timestamp"]).strftime("%Y-%m-%d %H:%M"),
+                f"{order['total_amount']:.2f}",
+                order["receipt_url"],
+                "; ".join(order["items"]),
+            ]
+        )
+    return rows
+
+
+def _export_sales_report_pdf(orders, start, end, local_now, filename):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=24,
+        rightMargin=24,
+        topMargin=24,
+        bottomMargin=24,
+    )
+    styles = getSampleStyleSheet()
+    title = Paragraph("Sales Order Report", styles["Title"])
+    meta = Paragraph(
+        f"Range: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}<br/>"
+        f"Generated: {local_now.strftime('%Y-%m-%d %H:%M')}",
+        styles["BodyText"],
+    )
+
+    data = [
+        [
+            "Order ID",
+            "Customer Name",
+            "Customer Phone",
+            "Date Time",
+            "Total Amount",
+            "Receipt URL",
+            "Items",
+        ]
+    ]
+    data.extend(_build_sales_report_rows(orders))
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E8EEF8")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#1F2A44")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F9FC")]),
+            ]
+        )
+    )
+
+    doc.build([title, Spacer(1, 12), meta, Spacer(1, 12), table])
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
+
+def _export_sales_report_docx(orders, start, end, local_now, filename):
+    from docx import Document
+
+    doc = Document()
+    doc.add_heading("Sales Order Report", level=1)
+    doc.add_paragraph(
+        f"Range: {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+    )
+    doc.add_paragraph(f"Generated: {local_now.strftime('%Y-%m-%d %H:%M')}")
+
+    table = doc.add_table(rows=1, cols=7)
+    headers = [
+        "Order ID",
+        "Customer Name",
+        "Customer Phone",
+        "Date Time",
+        "Total Amount",
+        "Receipt URL",
+        "Items",
+    ]
+    for idx, label in enumerate(headers):
+        table.rows[0].cells[idx].text = label
+
+    for row in _build_sales_report_rows(orders):
+        cells = table.add_row().cells
+        for idx, value in enumerate(row):
+            cells[idx].text = value
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 @require_admin

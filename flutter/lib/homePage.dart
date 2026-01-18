@@ -14,7 +14,6 @@ import 'package:khmer25/models/category_item.dart';
 import 'package:khmer25/product/model/product_model.dart';
 import 'package:khmer25/product/product_detail_screen.dart';
 import 'package:khmer25/product/products_sreen.dart';
-import 'package:khmer25/promotion/promotion_screen.dart';
 import 'package:khmer25/services/analytics_service.dart';
 
 void main() => runApp(const MyApp());
@@ -109,8 +108,6 @@ class _HomePageState extends State<HomePage> {
     final bool isTablet = screenWidth > 600;
     final drawerPages = [
       const HomeBody(),
-      const CategoriesScreen(),
-      const PromotionScreen(),
       const ProductsSreen(),
       const FavoriteScreen(),
       const OrderScreen(),
@@ -284,14 +281,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.home),
             label: LangStore.t('nav.home'),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.category),
-            label: LangStore.t('nav.categories'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.local_offer),
-            label: LangStore.t('nav.promotions'),
-          ),
+          
           BottomNavigationBarItem(
             icon: const Icon(Icons.inventory),
             label: LangStore.t('nav.products'),

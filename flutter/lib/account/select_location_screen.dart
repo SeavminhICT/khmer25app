@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:open_location_code/open_location_code.dart' as olc;
 
@@ -16,6 +17,7 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
   LatLng? _pin;
   final TextEditingController _labelCtrl = TextEditingController();
   final List<String> _quickLabels = const ['Home', 'Office', 'Store', 'Other'];
+  bool _isLocating = false;
 
   @override
   void initState() {
@@ -27,6 +29,81 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
   void dispose() {
     _labelCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _locateCurrentPosition() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location services are disabled.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied.')),
+          );
+        }
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission permanently denied.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        timeLimit: const Duration(seconds: 15),
+      );
+      final point = LatLng(position.latitude, position.longitude);
+      setState(() => _pin = point);
+      _controller.move(point, 16);
+      if (position.accuracy > 50 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Low GPS accuracy (${position.accuracy.toStringAsFixed(0)}m). Turn on high accuracy.',
+            ),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: Geolocator.openLocationSettings,
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      debugPrint('Failed to fetch location: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to fetch current location: $error'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
+    }
   }
 
   String _composeLabel(LatLng pin, String custom) {
@@ -145,36 +222,60 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
                   ],
                 ),
                 height: 360,
-                child: FlutterMap(
-                  mapController: _controller,
-                  options: MapOptions(
-                    initialCenter: _pin ?? _center,
-                    initialZoom: 13,
-                    onTap: (tapPosition, point) {
-                      setState(() => _pin = point);
-                    },
-                  ),
+                child: Stack(
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'khmer25',
-                    ),
-                    if (_pin != null)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _pin!,
-                            width: 44,
-                            height: 44,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 38,
-                            ),
-                          ),
-                        ],
+                    FlutterMap(
+                      mapController: _controller,
+                      options: MapOptions(
+                        initialCenter: _pin ?? _center,
+                        initialZoom: 13,
+                        onTap: (tapPosition, point) {
+                          setState(() => _pin = point);
+                        },
                       ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'khmer25',
+                        ),
+                        if (_pin != null)
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: _pin!,
+                                width: 44,
+                                height: 44,
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.red,
+                                  size: 38,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        child: IconButton(
+                          tooltip: 'Current location',
+                          onPressed: _isLocating ? null : _locateCurrentPosition,
+                          icon: _isLocating
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.my_location),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

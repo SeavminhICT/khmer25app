@@ -337,9 +337,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Text(
-                            customerName.isNotEmpty ? customerName : "Customer",
-                            style: const TextStyle(
+                          const Text(
+                            "You Chandaneth",
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,
                             ),
