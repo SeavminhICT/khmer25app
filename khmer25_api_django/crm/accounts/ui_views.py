@@ -701,9 +701,9 @@ def sales_report_view(request):
             {
                 "order_id": order.order_code or str(order.id),
                 "customer_name": order.customer_name or "Guest",
-                "customer_phone": order.phone,
+                "customer_phone": order.phone or "",
                 "timestamp": order.created_at,
-                "total_amount": float(order.total_amount),
+                "total_amount": float(order.total_amount or 0),
                 "receipt_url": receipt.receipt_image.url if receipt and receipt.receipt_image else "",
                 "items": [
                     f"{item.quantity}x {item.product_name or item.product.name}"
@@ -787,25 +787,37 @@ def _build_sales_report_filename(start, end, extension):
 def _build_sales_report_rows(orders):
     rows = []
     for order in orders:
+        timestamp = order.get("timestamp")
+        if timestamp:
+            timestamp = timezone.localtime(timestamp).strftime("%Y-%m-%d %H:%M")
+        total_amount = order.get("total_amount") or 0
+        items = order.get("items") or []
         rows.append(
             [
-                order["order_id"],
-                order["customer_name"],
-                order["customer_phone"],
-                timezone.localtime(order["timestamp"]).strftime("%Y-%m-%d %H:%M"),
-                f"{order['total_amount']:.2f}",
-                order["receipt_url"],
-                "; ".join(order["items"]),
+                str(order.get("order_id") or ""),
+                str(order.get("customer_name") or ""),
+                str(order.get("customer_phone") or ""),
+                timestamp or "",
+                f"{total_amount:.2f}",
+                str(order.get("receipt_url") or ""),
+                "; ".join(str(item) for item in items if item),
             ]
         )
     return rows
 
 
 def _export_sales_report_pdf(orders, start, end, local_now, filename):
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError:
+        return HttpResponse(
+            "PDF export is unavailable because reportlab is not installed.",
+            status=503,
+            content_type="text/plain",
+        )
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -836,8 +848,22 @@ def _export_sales_report_pdf(orders, start, end, local_now, filename):
         ]
     ]
     data.extend(_build_sales_report_rows(orders))
+    body_style = styles["BodyText"]
+    body_style.wordWrap = "CJK"
+    header_style = styles["Heading5"]
+    formatted = []
+    for idx, row in enumerate(data):
+        row_cells = []
+        for value in row:
+            cell_style = header_style if idx == 0 else body_style
+            row_cells.append(Paragraph(str(value), cell_style))
+        formatted.append(row_cells)
 
-    table = Table(data, repeatRows=1)
+    table = Table(
+        formatted,
+        repeatRows=1,
+        colWidths=[60, 85, 70, 80, 65, 90, 114],
+    )
     table.setStyle(
         TableStyle(
             [
